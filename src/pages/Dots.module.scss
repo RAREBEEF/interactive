@@ -1,0 +1,17 @@
+@use "../var";
+
+.container {
+  @include var.page-container;
+  position: fixed;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  .canvas {
+    // background-color: var.$gray;
+    touch-action: none;
+    background-image: url("../images/tile.png");
+    background-size: 50vw;
+    background-repeat: repeat;
+    // background-color: black;
+  }
+}

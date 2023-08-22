@@ -9,6 +9,7 @@ import {
 } from "react";
 import styles from "./Dots.module.scss";
 import _ from "lodash";
+import useShape from "../hooks/useShape";
 
 interface Dot {
   x: number;
@@ -27,6 +28,8 @@ interface Area {
   endX: number;
   startY: number;
   endY: number;
+  width: number;
+  height: number;
 }
 
 const Dots = () => {
@@ -35,9 +38,11 @@ const Dots = () => {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [cvs, setCvs] = useState<HTMLCanvasElement | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
+  const [areas, setAreas] = useState<Array<Area>>([]);
   const [dots, setDots] = useState<Array<Dot>>([]);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
+  const Shape = useShape(ctx);
 
   const isReady = useMemo(
     () => !!cvs && !!ctx && !!container,
@@ -60,6 +65,11 @@ const Dots = () => {
     setContainer(containerRef.current);
     setCvs(cvsRef.current);
     setCtx(cvsRef.current.getContext("2d"));
+    document.body.style.cursor = "none";
+
+    return () => {
+      document.body.style.cursor = "auto";
+    };
   }, [containerRef, cvsRef]);
 
   // 최초 및 리사이즈 시 렌더링
@@ -86,9 +96,18 @@ const Dots = () => {
           const startX = (areaWidth + AREA_GAP) * (j - 1);
           const endX = startX + areaWidth;
 
-          areas.push({ startX, startY, endX, endY });
+          areas.push({
+            startX,
+            startY,
+            endX,
+            endY,
+            width: areaWidth,
+            height: areaHeight,
+          });
         }
       }
+
+      setAreas(areas);
 
       // 각 영역당 하나씩 랜덤의 위치에 점 생성
       for (const area of areas) {
@@ -111,7 +130,7 @@ const Dots = () => {
         };
 
         // ctx!.beginPath();
-        // ctx!.strokeStyle = LINE_COLOR;
+        // ctx!.strokeStyle = "blue";
         // ctx!.lineWidth = 1;
 
         // ctx!.strokeRect(startX, startY, areaWidth, areaHeight);
@@ -237,34 +256,73 @@ const Dots = () => {
 
     // 렌더
     const draw = (dots: Array<Dot>) => {
+      const drawQueue: Array<InstanceType<typeof Shape>> = [];
+
       ctx!.clearRect(0, 0, cvsSize[0], cvsSize[1]);
 
-      for (const dot of dots) {
-        const { x, y, radius, startAngle, endAngle, color, active } = dot;
+      for (const area of areas) {
+        const { startX, startY, width, height } = area;
+        ctx!.beginPath();
+        ctx!.strokeStyle = "blue";
+        ctx!.lineWidth = 1;
+        ctx!.strokeRect(startX, startY, width, height);
+        ctx!.closePath();
+      }
+
+      for (const curDot of dots) {
+        const { x, y, radius, startAngle, endAngle, color, active } = curDot;
 
         if (active) {
           const controlX = (x + mouseX) / 2 + 20;
           const controlY = (y + mouseY) / 2 - 20;
-          ctx!.beginPath();
-          ctx!.moveTo(x, y);
-          ctx!.quadraticCurveTo(controlX, controlY, mouseX, mouseY);
-          ctx!.strokeStyle = "gray";
-          ctx!.lineWidth = 2;
-          ctx!.stroke();
+          const curveShpae = new Shape({
+            quadraticCurve: {
+              moveTo: { x, y },
+              QuadraticCurveTo: {
+                cpx: controlX,
+                cpy: controlY,
+                x: mouseX,
+                y: mouseY,
+              },
+              strokeStyle: "gray",
+              lineWidth: 2,
+            },
+          });
+
+          drawQueue.push(curveShpae);
         }
 
-        ctx!.beginPath();
-        ctx!.arc(x, y, radius, startAngle, endAngle);
-        ctx!.fillStyle = color;
-        ctx!.fill();
-        ctx!.closePath();
+        const dotShape = new Shape({
+          arc: {
+            x,
+            y,
+            radius,
+            startAngle,
+            endAngle,
+            fillStyle: color,
+          },
+        });
+
+        drawQueue.push(dotShape);
       }
 
-      ctx!.beginPath();
-      ctx!.arc(mouseX, mouseY, 10, Math.PI * 2, 0);
-      ctx!.fillStyle = NEAR_DOT_COLOR;
-      ctx!.fill();
-      ctx!.closePath();
+      const centerShape = new Shape({
+        arc: {
+          x: mouseX,
+          y: mouseY,
+          radius: 10,
+          startAngle: Math.PI * 2,
+          endAngle: 0,
+          fillStyle: NEAR_DOT_COLOR,
+        },
+      });
+
+      drawQueue.push(centerShape);
+
+      for (let i = 0; i < drawQueue.length; i++) {
+        const shape = drawQueue[i];
+        shape.draw();
+      }
     };
 
     const id = requestAnimationFrame(() => {
@@ -276,7 +334,7 @@ const Dots = () => {
     return () => {
       cancelAnimationFrame(id);
     };
-  }, [ctx, cvsSize, dots, isReady, mousePos, MOUSE_RANGE]);
+  }, [ctx, cvsSize, dots, isReady, mousePos, MOUSE_RANGE, Shape]);
 
   return (
     <main ref={containerRef} className={styles.container}>

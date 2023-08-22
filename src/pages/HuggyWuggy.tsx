@@ -11,6 +11,7 @@ import styles from "./Dots.module.scss";
 import _ from "lodash";
 import generateId from "../tools/generateId";
 import dotSort from "../tools/dotSort";
+import useShape from "../hooks/useShape";
 
 // FIXME: 손이 다리를 뚫음. 순서 잘 맞추기
 // TODO: draw 부분 코드가 너무 지저분함. 정리 좀 하기
@@ -54,6 +55,8 @@ interface Area {
   endX: number;
   startY: number;
   endY: number;
+  width: number;
+  height: number;
 }
 
 const HuggyWuggy = () => {
@@ -64,9 +67,11 @@ const HuggyWuggy = () => {
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [dots, setDots] = useState<Dots>({});
   const [nearDots, setNearDots] = useState<NearDots>(null);
+  const [areas, setAreas] = useState<Array<Area>>([]);
   const [feet, setFeet] = useState<[Dot, Dot, Dot, Dot] | null>(null);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
+  const Shape = useShape(ctx);
   const isReady = useMemo(
     () => !!cvs && !!ctx && !!container,
     [cvs, ctx, container]
@@ -90,6 +95,10 @@ const HuggyWuggy = () => {
     setCvs(cvsRef.current);
     setCtx(cvsRef.current.getContext("2d"));
     document.body.style.cursor = "none";
+
+    return () => {
+      document.body.style.cursor = "auto";
+    };
   }, [containerRef, cvsRef]);
 
   // 최초 및 리사이즈 시 점 생성
@@ -116,9 +125,18 @@ const HuggyWuggy = () => {
           const startX = (areaWidth + AREA_GAP) * (j - 1);
           const endX = startX + areaWidth;
 
-          areas.push({ startX, startY, endX, endY });
+          areas.push({
+            startX,
+            startY,
+            endX,
+            endY,
+            width: areaWidth,
+            height: areaHeight,
+          });
         }
       }
+
+      setAreas(areas);
 
       // 각 영역당 하나씩 랜덤의 위치에 점 생성
       for (const area of areas) {
@@ -206,6 +224,7 @@ const HuggyWuggy = () => {
       const quadrant3: Array<DotDistance> = [];
       const quadrant4: Array<DotDistance> = [];
 
+      // 각 점의 마우스와 거리 계산 후 사분면으로 나눠서 저장
       for (const [id, dot] of Object.entries(dots)) {
         const { x: dotX, y: dotY } = dot;
 
@@ -229,6 +248,7 @@ const HuggyWuggy = () => {
         }
       }
 
+      // 각 사분면의 점들을 마우스 거리 가까운 순으로 정렬
       const sortedQuadrant1 = dotSort(quadrant1);
       const sortedQuadrant2 = dotSort(quadrant2);
       const sortedQuadrant3 = dotSort(quadrant3);
@@ -301,32 +321,39 @@ const HuggyWuggy = () => {
 
     // 렌더
     const draw = (feet: Feet) => {
+      const drawQueue: Array<InstanceType<typeof Shape>> = [];
+
       ctx!.clearRect(0, 0, cvsSize[0], cvsSize[1]);
       ctx!.lineCap = "round";
 
       // 디버그용 사분면 구분선
-      ctx!.beginPath();
-      ctx!.strokeStyle = LINE_COLOR;
-      ctx!.lineWidth = 1;
-      ctx!.moveTo(0, mouseY);
-      ctx!.lineTo(cvsWidth, mouseY);
-      ctx!.stroke();
-      ctx!.beginPath();
-      ctx!.strokeStyle = LINE_COLOR;
-      ctx!.lineWidth = 1;
-      ctx!.moveTo(mouseX, 0);
-      ctx!.lineTo(mouseX, cvsHeight);
-      ctx!.stroke();
+      const debugLineX = new Shape({
+        line: {
+          moveTo: { x: 0, y: mouseY },
+          lineTo: { x: cvsWidth, y: mouseY },
+          strokeStyle: LINE_COLOR,
+          lineWidth: 1,
+        },
+      });
+
+      const debugLineY = new Shape({
+        line: {
+          moveTo: { x: mouseX, y: 0 },
+          lineTo: { x: mouseX, y: cvsHeight },
+          strokeStyle: LINE_COLOR,
+          lineWidth: 1,
+        },
+      });
+
+      drawQueue.push(debugLineX, debugLineY);
 
       // 디버그용 Dot 렌더
       for (const [id, dot] of Object.entries(dots)) {
         const { x, y } = dot;
         const nearDotIndex = nearDots?.indexOf(id);
         const active = nearDotIndex !== -1;
-
-        ctx!.beginPath();
-        ctx!.arc(x, y, active ? 15 : 5, 0, Math.PI * 2);
-        ctx!.fillStyle = active
+        const radius = active ? 15 : 5;
+        const fillStyle = active
           ? nearDotIndex === 0
             ? "red"
             : nearDotIndex === 1
@@ -335,187 +362,203 @@ const HuggyWuggy = () => {
             ? "yellow"
             : "green"
           : "darkgray";
-        ctx!.fill();
-        ctx!.closePath();
+
+        const debugDot = new Shape({
+          arc: {
+            x,
+            y,
+            radius,
+            startAngle: 0,
+            endAngle: Math.PI * 2,
+            fillStyle,
+          },
+        });
+
+        drawQueue.push(debugDot);
       }
 
-      // 캔버스 중첩 순서 때문에 반복문을 손발과 팔다리 두 번 실행
-      // 손발
-      feet?.forEach(({ x, y }, i) => {
-        // 손
-        if (i <= 1) {
-          // 오른손
-          if (i === 0) {
-            ctx!.beginPath();
-            ctx!.ellipse(
-              x,
-              y - LIMBS_WIDTH / 4,
-              LIMBS_WIDTH * 0.5,
-              LIMBS_WIDTH * 0.8,
-              (Math.PI / 180) * 20,
-              0,
-              Math.PI * 2
-            );
-            ctx!.fillStyle = "yellow";
-            ctx!.fill();
-            ctx!.closePath();
-
-            ctx!.beginPath();
-            ctx!.ellipse(
-              x - LIMBS_WIDTH / 2,
-              y - LIMBS_WIDTH / 4,
-              LIMBS_WIDTH * 0.4,
-              LIMBS_WIDTH * 0.2,
-              (Math.PI / 180) * 45,
-              0,
-              Math.PI * 2
-            );
-            ctx!.fillStyle = "yellow";
-            ctx!.fill();
-            ctx!.closePath();
-
-            // 왼손
-          } else {
-            ctx!.beginPath();
-            ctx!.ellipse(
-              x,
-              y - LIMBS_WIDTH / 4,
-              LIMBS_WIDTH * 0.5,
-              LIMBS_WIDTH * 0.8,
-              (Math.PI / 180) * 340,
-              0,
-              Math.PI * 2
-            );
-            ctx!.fillStyle = "yellow";
-            ctx!.fill();
-            ctx!.closePath();
-
-            ctx!.beginPath();
-            ctx!.ellipse(
-              x + LIMBS_WIDTH / 2,
-              y - LIMBS_WIDTH / 4,
-              LIMBS_WIDTH * 0.4,
-              LIMBS_WIDTH * 0.2,
-              (Math.PI / 180) * 135,
-              0,
-              Math.PI * 2
-            );
-            ctx!.fillStyle = "yellow";
-            ctx!.fill();
-            ctx!.closePath();
-          }
-
-          // 발
-        } else {
-          ctx!.beginPath();
-          ctx!.ellipse(
-            x,
-            y - LIMBS_WIDTH / 5,
-            LIMBS_WIDTH * 0.6,
-            LIMBS_WIDTH * 0.8,
-            0,
-            0,
-            Math.PI * 2
-          );
-          ctx!.fillStyle = "yellow";
-          ctx!.fill();
-          ctx!.closePath();
-        }
-      });
-
       // 팔다리
-      feet?.forEach(({ x, y }, i) => {
-        let jointX = mouseX;
-        let jointY = mouseY;
-        let controlX = (x + jointX) / 2 + 10;
-        let controlY = (y + jointY) / 2;
+      if (!!feet) {
+        for (let i = 0; i < feet.length; i++) {
+          const { x, y } = feet[i];
+          let jointX = mouseX;
+          let jointY = mouseY;
+          let controlX = (x + jointX) / 2 + 10;
+          let controlY = (y + jointY) / 2;
 
-        // 팔
-        if (i <= 1) {
           // 오른팔
           if (i === 0) {
+            // 팔
             jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
             jointY -= BODY_HEIGHT / 2;
             controlY += 20;
+
+            // 손
+            const palm = new Shape({
+              ellipse: {
+                x,
+                y: y - LIMBS_WIDTH / 4,
+                radiusX: LIMBS_WIDTH * 0.5,
+                radiusY: LIMBS_WIDTH * 0.8,
+                rotation: (Math.PI / 180) * 20,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                fillStyle: "yellow",
+              },
+            });
+            const thumb = new Shape({
+              ellipse: {
+                x: x - LIMBS_WIDTH / 2,
+                y: y - LIMBS_WIDTH / 4,
+                radiusX: LIMBS_WIDTH * 0.4,
+                radiusY: LIMBS_WIDTH * 0.2,
+                rotation: (Math.PI / 180) * 45,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                fillStyle: "yellow",
+              },
+            });
+
+            drawQueue.unshift(palm, thumb);
 
             // 왼팔
-          } else {
+          } else if (i === 1) {
+            // 팔
             jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
             jointY -= BODY_HEIGHT / 2;
             controlY += 20;
-          }
 
-          // 다리
-        } else {
-          // 왼다리
-          if (i === 2) {
-            jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
-            jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
-            controlY -= 20;
+            // 손
+            const palm = new Shape({
+              ellipse: {
+                x,
+                y: y - LIMBS_WIDTH / 4,
+                radiusX: LIMBS_WIDTH * 0.5,
+                radiusY: LIMBS_WIDTH * 0.8,
+                rotation: (Math.PI / 180) * 340,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                fillStyle: "yellow",
+              },
+            });
+            const thumb = new Shape({
+              ellipse: {
+                x: x + LIMBS_WIDTH / 2,
+                y: y - LIMBS_WIDTH / 4,
+                radiusX: LIMBS_WIDTH * 0.4,
+                radiusY: LIMBS_WIDTH * 0.2,
+                rotation: (Math.PI / 180) * 135,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                fillStyle: "yellow",
+              },
+            });
 
-            // 오른 다리
+            drawQueue.unshift(palm, thumb);
+
+            // 다리
           } else {
-            jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
-            jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
-            controlY -= 20;
-          }
-        }
+            // 왼다리
+            if (i === 2) {
+              jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
+              jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
+              controlY -= 20;
+              // 오른 다리
+            } else {
+              jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
+              jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
+              controlY -= 20;
+            }
 
-        // 팔다리 연결
-        ctx!.beginPath();
-        ctx!.moveTo(x, y);
-        ctx!.quadraticCurveTo(controlX, controlY, jointX, jointY);
-        ctx!.strokeStyle = BODY_COLOR;
-        ctx!.lineWidth = LIMBS_WIDTH;
-        ctx!.stroke();
-      });
+            // 발
+            const foot = new Shape({
+              ellipse: {
+                x,
+                y: y - LIMBS_WIDTH / 5,
+                radiusX: LIMBS_WIDTH * 0.6,
+                radiusY: LIMBS_WIDTH * 0.8,
+                rotation: 0,
+                startAngle: 0,
+                endAngle: Math.PI * 2,
+                fillStyle: "yellow",
+              },
+            });
+
+            drawQueue.unshift(foot);
+          }
+
+          const limb = new Shape({
+            quadraticCurve: {
+              moveTo: { x, y },
+              QuadraticCurveTo: {
+                cpx: controlX,
+                cpy: controlY,
+                x: jointX,
+                y: jointY,
+              },
+              strokeStyle: BODY_COLOR,
+              lineWidth: LIMBS_WIDTH,
+            },
+          });
+
+          drawQueue.push(limb);
+        }
+      }
 
       // 바디
-      ctx!.beginPath();
-      ctx!.fillStyle = BODY_COLOR;
-      ctx!.fillRect(
-        mouseX - BODY_WIDTH / 2,
-        mouseY - BODY_HEIGHT / 2,
-        BODY_WIDTH,
-        BODY_HEIGHT - BODY_HEIGHT / 5
-      );
-      ctx!.closePath();
+      const body = new Shape({
+        fillRect: {
+          x: mouseX - BODY_WIDTH / 2,
+          y: mouseY - BODY_HEIGHT / 2,
+          width: BODY_WIDTH,
+          height: BODY_HEIGHT - BODY_HEIGHT / 5,
+          fillStyle: BODY_COLOR,
+        },
+      });
 
-      ctx!.beginPath();
-      ctx!.arc(
-        mouseX,
-        mouseY - BODY_HEIGHT / 2,
-        BODY_WIDTH / 2,
-        Math.PI,
-        Math.PI * 2
-      );
-      ctx!.fillStyle = BODY_COLOR;
-      ctx!.fill();
-      ctx!.closePath();
+      const shoulder = new Shape({
+        arc: {
+          x: mouseX,
+          y: mouseY - BODY_HEIGHT / 2,
+          radius: BODY_WIDTH / 2,
+          startAngle: Math.PI,
+          endAngle: Math.PI * 2,
+          fillStyle: BODY_COLOR,
+        },
+      });
 
-      ctx!.beginPath();
-      ctx!.arc(
-        mouseX,
-        mouseY + BODY_HEIGHT / 2 - BODY_HEIGHT / 5,
-        BODY_WIDTH / 2,
-        Math.PI * 2,
-        Math.PI * 3
-      );
-      ctx!.fillStyle = BODY_COLOR;
-      ctx!.fill();
-      ctx!.closePath();
+      const ass = new Shape({
+        arc: {
+          x: mouseX,
+          y: mouseY + BODY_HEIGHT / 2 - BODY_HEIGHT / 5,
+          radius: BODY_WIDTH / 2,
+          startAngle: Math.PI * 2,
+          endAngle: Math.PI * 3,
+          fillStyle: BODY_COLOR,
+        },
+      });
 
       // 머리
       const img = new Image();
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(FACE);
-      ctx!.drawImage(
-        img,
-        mouseX - BODY_WIDTH * 1.5,
-        mouseY - BODY_HEIGHT * 1.5,
-        BODY_WIDTH * 3,
-        BODY_WIDTH * 3
-      );
+      const head = new Shape({
+        drawImage: {
+          image: img,
+          x: mouseX - BODY_WIDTH * 1.5,
+          y: mouseY - BODY_HEIGHT * 1.5,
+          width: BODY_WIDTH * 3,
+          height: BODY_WIDTH * 3,
+        },
+      });
 
+      drawQueue.push(body, shoulder, ass, head);
+
+      for (let i = 0; i < drawQueue.length; i++) {
+        const shape = drawQueue[i];
+        shape.draw();
+      }
+
+      // spotlight
       ctx!.beginPath();
       const gradient = ctx!.createRadialGradient(
         mouseX,
@@ -562,3 +605,86 @@ const HuggyWuggy = () => {
 };
 
 export default HuggyWuggy;
+
+// for (let i = 0; i < (feet?.length || 0); i++) {
+//   const { x, y } = feet[i];
+//   // 손
+//   if (i <= 1) {
+//     // 오른손
+//     if (i === 0) {
+//       ctx!.beginPath();
+//       ctx!.ellipse(
+//         x,
+//         y - LIMBS_WIDTH / 4,
+//         LIMBS_WIDTH * 0.5,
+//         LIMBS_WIDTH * 0.8,
+//         (Math.PI / 180) * 20,
+//         0,
+//         Math.PI * 2
+//       );
+//       ctx!.fillStyle = "yellow";
+//       ctx!.fill();
+//       ctx!.closePath();
+
+//       ctx!.beginPath();
+//       ctx!.ellipse(
+//         x - LIMBS_WIDTH / 2,
+//         y - LIMBS_WIDTH / 4,
+//         LIMBS_WIDTH * 0.4,
+//         LIMBS_WIDTH * 0.2,
+//         (Math.PI / 180) * 45,
+//         0,
+//         Math.PI * 2
+//       );
+//       ctx!.fillStyle = "yellow";
+//       ctx!.fill();
+//       ctx!.closePath();
+
+//       // 왼손
+//     } else {
+//       ctx!.beginPath();
+//       ctx!.ellipse(
+//         x,
+//         y - LIMBS_WIDTH / 4,
+//         LIMBS_WIDTH * 0.5,
+//         LIMBS_WIDTH * 0.8,
+//         (Math.PI / 180) * 340,
+//         0,
+//         Math.PI * 2
+//       );
+//       ctx!.fillStyle = "yellow";
+//       ctx!.fill();
+//       ctx!.closePath();
+
+//       ctx!.beginPath();
+//       ctx!.ellipse(
+//         x + LIMBS_WIDTH / 2,
+//         y - LIMBS_WIDTH / 4,
+//         LIMBS_WIDTH * 0.4,
+//         LIMBS_WIDTH * 0.2,
+//         (Math.PI / 180) * 135,
+//         0,
+//         Math.PI * 2
+//       );
+//       ctx!.fillStyle = "yellow";
+//       ctx!.fill();
+//       ctx!.closePath();
+//     }
+
+//     // 발
+//   } else {
+//     ctx!.beginPath();
+//     ctx!.ellipse(
+//       x,
+//       y - LIMBS_WIDTH / 5,
+//       LIMBS_WIDTH * 0.6,
+//       LIMBS_WIDTH * 0.8,
+//       0,
+//       0,
+//       Math.PI * 2
+//     );
+//     ctx!.fillStyle = "yellow";
+//     ctx!.fill();
+//     ctx!.closePath();
+//   }
+// }

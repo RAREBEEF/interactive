@@ -1,5 +1,7 @@
 import {
+  Dispatch,
   MouseEvent,
+  SetStateAction,
   TouchEvent,
   useCallback,
   useEffect,
@@ -7,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import styles from "./Dots.module.scss";
+import styles from "./HuggyWuggy.module.scss";
 import _ from "lodash";
 import generateId from "../tools/generateId";
 import dotSort from "../tools/dotSort";
@@ -18,7 +20,7 @@ import useShape from "../hooks/useShape";
 // TODO: 바디와 너무 가까운 점은 순위에서 제거
 // FIXME: 머리 svg 사이즈 기준을 height로 변경하기
 
-const FACE = `
+const faceSvg = `
 <svg id="_레이어_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <style>.cls-1{fill:#fff;}.cls-2{fill:#c80028;}.cls-3{fill:#0d52af;}.cls-4{fill:none;stroke:#3a000e;stroke-linecap:round;stroke-miterlimit:10;stroke-width:3.53px;}</style>
@@ -32,6 +34,19 @@ const FACE = `
   <ellipse cx="245.25" cy="240.13" rx="22.8" ry="22.49"/>
 </svg>
 `;
+
+interface ENV {
+  AREA_DIVIDE: number;
+  AREA_GAP: number;
+  BODY_COLOR: string;
+  LINE_COLOR: string;
+  DOT_COLOR: string;
+  SPEED: number;
+  BODY_WIDTH: number;
+  BODY_HEIGHT: number;
+  LIMBS_WIDTH: number;
+  FACE: string;
+}
 
 type Dots = {
   [key in string]: Dot;
@@ -71,22 +86,31 @@ const HuggyWuggy = () => {
   const [feet, setFeet] = useState<[Dot, Dot, Dot, Dot] | null>(null);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
-  const Shape = useShape(ctx);
+  const shape = useShape(ctx);
   const isReady = useMemo(
     () => !!cvs && !!ctx && !!container,
     [cvs, ctx, container]
   );
 
-  const AREA_DIVIDE = 10;
-  const AREA_GAP = 20;
-  const BODY_COLOR = "#0d52af";
-  const LINE_COLOR = "green";
-  const DOT_COLOR = "black";
-  const SPEED = useMemo(() => cvsSize[0] / AREA_DIVIDE / 10, [cvsSize]);
-  const BODY_WIDTH = useMemo(() => cvsSize[0] / AREA_DIVIDE / 3, [cvsSize]);
-  const BODY_HEIGHT = useMemo(() => BODY_WIDTH * 2, [BODY_WIDTH]);
-  const LIMBS_WIDTH = useMemo(() => BODY_WIDTH * 0.8, [BODY_WIDTH]);
-  let ANIMATION_FRAME_ID: null | number = null;
+  const ENV = useMemo(() => {
+    const areaDivide = 10;
+    const bodyWidth = cvsSize[0] / areaDivide / 3;
+
+    return {
+      AREA_DIVIDE: areaDivide,
+      AREA_GAP: 20,
+      BODY_COLOR: "#0d52af",
+      LINE_COLOR: "green",
+      DOT_COLOR: "black",
+      FACE: faceSvg,
+      SPEED: cvsSize[0] / areaDivide / 10,
+      BODY_WIDTH: bodyWidth,
+      BODY_HEIGHT: bodyWidth * 2,
+      LIMBS_WIDTH: bodyWidth * 0.8,
+    };
+  }, [cvsSize]);
+
+  const ANIMATION_FRAME_ID = useRef<null | number>(null);
 
   // 컨테이너와 캔버스 체크 & 상태 저장
   useEffect(() => {
@@ -101,28 +125,28 @@ const HuggyWuggy = () => {
     };
   }, [containerRef, cvsRef]);
 
-  // 최초 및 리사이즈 시 점 생성
+  // 최초 및 리사이즈 시 영역 구분 및 점 생성
   const createDots = useCallback(
-    (width: number, height: number) => {
+    (cvsWidth: number, cvsHeight: number) => {
       if (!isReady) return;
-
+      const { AREA_GAP, AREA_DIVIDE } = ENV;
       const dots: Dots = {};
 
       // 캔버스 사이즈 지정
-      cvs!.width = width;
-      cvs!.height = height;
+      cvs!.width = cvsWidth;
+      cvs!.height = cvsHeight;
 
       // 영역 구분
       const areas: Array<Area> = [];
-      const areaWidth = (width - AREA_GAP * (AREA_DIVIDE - 1)) / AREA_DIVIDE;
-      const areaHeight = (height - AREA_GAP * (AREA_DIVIDE - 1)) / AREA_DIVIDE;
+      const areaWidth = (cvsWidth - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
+      const areaHeight = (cvsHeight - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
 
       for (let i = 1; i <= AREA_DIVIDE; i++) {
-        const startY = (areaHeight + AREA_GAP) * (i - 1);
+        const startY = AREA_GAP / 2 + (areaHeight + AREA_GAP) * (i - 1);
         const endY = startY + areaHeight;
 
         for (let j = 1; j <= AREA_DIVIDE; j++) {
-          const startX = (areaWidth + AREA_GAP) * (j - 1);
+          const startX = AREA_GAP / 2 + (areaWidth + AREA_GAP) * (j - 1);
           const endX = startX + areaWidth;
 
           areas.push({
@@ -150,7 +174,7 @@ const HuggyWuggy = () => {
           radius: 5,
           startAngle: 0,
           endAngle: Math.PI * 2,
-          color: DOT_COLOR,
+          color: ENV.DOT_COLOR,
           active: false,
         };
 
@@ -211,18 +235,38 @@ const HuggyWuggy = () => {
   };
 
   // 마우스에 맞춰 위치 계산 및 렌더
-  useEffect(() => {
-    if (!isReady) return;
+  // 팔다리 위치 계산
+  const updateFeet = useCallback(
+    ({
+      mousePos,
+      dots,
+      nearDotSetter,
+      feetSetter,
+      env,
+      sortFx,
+    }: {
+      mousePos: [number, number];
+      dots: Dots;
+      nearDotSetter: Dispatch<SetStateAction<NearDots>>;
+      feetSetter: Dispatch<SetStateAction<Feet>>;
+      env: ENV;
+      sortFx: (
+        dots: Array<{
+          id: string;
+          distance: number;
+        }>
+      ) => Array<{
+        id: string;
+        distance: number;
+      }>;
+    }) => {
+      const { SPEED } = env;
+      const [mouseX, mouseY] = mousePos;
 
-    const [mouseX, mouseY] = mousePos;
-    const [cvsWidth, cvsHeight] = cvsSize;
-
-    // 팔다리 위치 계산
-    const updateFeet = () => {
-      const quadrant1: Array<DotDistance> = [];
-      const quadrant2: Array<DotDistance> = [];
-      const quadrant3: Array<DotDistance> = [];
-      const quadrant4: Array<DotDistance> = [];
+      const quadrant1: Array<DotDistance> = [],
+        quadrant2: Array<DotDistance> = [],
+        quadrant3: Array<DotDistance> = [],
+        quadrant4: Array<DotDistance> = [];
 
       // 각 점의 마우스와 거리 계산 후 사분면으로 나눠서 저장
       for (const [id, dot] of Object.entries(dots)) {
@@ -249,26 +293,32 @@ const HuggyWuggy = () => {
       }
 
       // 각 사분면의 점들을 마우스 거리 가까운 순으로 정렬
-      const sortedQuadrant1 = dotSort(quadrant1);
-      const sortedQuadrant2 = dotSort(quadrant2);
-      const sortedQuadrant3 = dotSort(quadrant3);
-      const sortedQuadrant4 = dotSort(quadrant4);
+      const sortedQuadrant1 = sortFx(quadrant1),
+        sortedQuadrant2 = sortFx(quadrant2),
+        sortedQuadrant3 = sortFx(quadrant3),
+        sortedQuadrant4 = sortFx(quadrant4);
 
-      const nearDot1 = sortedQuadrant1[0]?.id || sortedQuadrant3[1]?.id;
-      const nearDot2 = sortedQuadrant2[0]?.id || sortedQuadrant4[1]?.id;
-      const nearDot3 = sortedQuadrant3[0]?.id || sortedQuadrant1[1]?.id;
-      const nearDot4 = sortedQuadrant4[0]?.id || sortedQuadrant2[1]?.id;
-      const nearDots: NearDots = [nearDot1, nearDot2, nearDot3, nearDot4];
-      setNearDots(nearDots);
+      const nearDot1 = sortedQuadrant1[0]?.id || sortedQuadrant3[1]?.id,
+        nearDot2 = sortedQuadrant2[0]?.id || sortedQuadrant4[1]?.id,
+        nearDot3 = sortedQuadrant3[0]?.id || sortedQuadrant1[1]?.id,
+        nearDot4 = sortedQuadrant4[0]?.id || sortedQuadrant2[1]?.id,
+        nearDots: NearDots = [nearDot1, nearDot2, nearDot3, nearDot4];
 
-      setFeet((prev) => {
+      nearDotSetter(nearDots);
+
+      // feet[0] -> 제1사분면 -> 오른손
+      // feet[1] -> 제2사분면 -> 왼손
+      // feet[2] -> 제3사분면 -> 왼발
+      // feet[3] -> 제4사분면 -> 오른발
+      feetSetter((prev) => {
         let newFeet: Feet = prev;
 
         if (
-          (!prev && !dots[nearDot1]) ||
-          !dots[nearDot2] ||
-          !dots[nearDot3] ||
-          !dots[nearDot4]
+          !prev &&
+          (!dots[nearDot1] ||
+            !dots[nearDot2] ||
+            !dots[nearDot3] ||
+            !dots[nearDot4])
         )
           return null;
 
@@ -294,6 +344,8 @@ const HuggyWuggy = () => {
           // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
+          // 현재 속도보다 남은 거리가 클 경우
+          // 속력을 계산해 위치를 업데이트한다.
           if (distance > SPEED) {
             // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
             const angle = Math.atan2(deltaY, deltaX);
@@ -303,6 +355,8 @@ const HuggyWuggy = () => {
             // 새로운 x,y 좌표 계산
             x = footX + velocityX;
             y = footY + velocityY;
+            // 현재 속도보다 남은 거리가 작을 경우
+            // 타겟 위치로 바로 이동한다.
           } else {
             x = targetX;
             y = targetY;
@@ -317,65 +371,93 @@ const HuggyWuggy = () => {
 
         return newFeet;
       });
-    };
+    },
+    []
+  );
 
-    // 렌더
-    const draw = (feet: Feet) => {
-      const drawQueue: Array<InstanceType<typeof Shape>> = [];
+  const draw = useCallback(
+    ({
+      mousePos,
+      cvsSize,
+      Shape,
+      feet,
+      dots,
+      nearDots,
+      env,
+    }: {
+      mousePos: [number, number];
+      cvsSize: [number, number];
+      Shape: typeof shape;
+      feet: Feet;
+      dots: Dots;
+      nearDots: NearDots;
+      env: ENV;
+    }) => {
+      const {
+        LINE_COLOR,
+        LIMBS_WIDTH,
+        BODY_COLOR,
+        BODY_HEIGHT,
+        BODY_WIDTH,
+        FACE,
+      } = env;
+      const [mouseX, mouseY] = mousePos;
+      const [cvsWidth, cvsHeight] = cvsSize;
 
-      ctx!.clearRect(0, 0, cvsSize[0], cvsSize[1]);
-      ctx!.lineCap = "round";
+      // draw를 순차적으로 실행할 덱
+      // Shape 객체를 담는다.
+      const drawDeque: Array<InstanceType<typeof Shape>> = [];
 
       // 디버그용 사분면 구분선
-      const debugLineX = new Shape({
-        line: {
-          moveTo: { x: 0, y: mouseY },
-          lineTo: { x: cvsWidth, y: mouseY },
-          strokeStyle: LINE_COLOR,
-          lineWidth: 1,
-        },
-      });
+      // const debugLineX = new Shape({
+      //   line: {
+      //     moveTo: { x: 0, y: mouseY },
+      //     lineTo: { x: cvsWidth, y: mouseY },
+      //   },
+      //   strokeStyle: LINE_COLOR,
+      //   lineWidth: 3,
+      // });
 
-      const debugLineY = new Shape({
-        line: {
-          moveTo: { x: mouseX, y: 0 },
-          lineTo: { x: mouseX, y: cvsHeight },
-          strokeStyle: LINE_COLOR,
-          lineWidth: 1,
-        },
-      });
+      // const debugLineY = new Shape({
+      //   line: {
+      //     moveTo: { x: mouseX, y: 0 },
+      //     lineTo: { x: mouseX, y: cvsHeight },
+      //   },
+      //   strokeStyle: LINE_COLOR,
+      //   lineWidth: 3,
+      // });
 
-      drawQueue.push(debugLineX, debugLineY);
+      // drawDeque.push(debugLineX, debugLineY);
 
       // 디버그용 Dot 렌더
-      for (const [id, dot] of Object.entries(dots)) {
-        const { x, y } = dot;
-        const nearDotIndex = nearDots?.indexOf(id);
-        const active = nearDotIndex !== -1;
-        const radius = active ? 15 : 5;
-        const fillStyle = active
-          ? nearDotIndex === 0
-            ? "red"
-            : nearDotIndex === 1
-            ? "orange"
-            : nearDotIndex === 2
-            ? "yellow"
-            : "green"
-          : "darkgray";
+      // for (const [id, dot] of Object.entries(dots)) {
+      //   const { x, y } = dot;
+      //   const nearDotIndex = nearDots?.indexOf(id);
+      //   const active = nearDotIndex !== -1;
+      //   const radius = active ? 15 : 5;
+      //   const fillStyle = active
+      //     ? nearDotIndex === 0
+      //       ? "red"
+      //       : nearDotIndex === 1
+      //       ? "orange"
+      //       : nearDotIndex === 2
+      //       ? "yellow"
+      //       : "green"
+      //     : "darkgray";
 
-        const debugDot = new Shape({
-          arc: {
-            x,
-            y,
-            radius,
-            startAngle: 0,
-            endAngle: Math.PI * 2,
-            fillStyle,
-          },
-        });
+      //   const debugDot = new Shape({
+      //     arc: {
+      //       x,
+      //       y,
+      //       radius,
+      //       startAngle: 0,
+      //       endAngle: Math.PI * 2,
+      //     },
+      //     fillStyle,
+      //   });
 
-        drawQueue.push(debugDot);
-      }
+      //   drawDeque.push(debugDot);
+      // }
 
       // 팔다리
       if (!!feet) {
@@ -403,8 +485,8 @@ const HuggyWuggy = () => {
                 rotation: (Math.PI / 180) * 20,
                 startAngle: 0,
                 endAngle: Math.PI * 2,
-                fillStyle: "yellow",
               },
+              fillStyle: "yellow",
             });
             const thumb = new Shape({
               ellipse: {
@@ -415,11 +497,11 @@ const HuggyWuggy = () => {
                 rotation: (Math.PI / 180) * 45,
                 startAngle: 0,
                 endAngle: Math.PI * 2,
-                fillStyle: "yellow",
               },
+              fillStyle: "yellow",
             });
 
-            drawQueue.unshift(palm, thumb);
+            drawDeque.unshift(palm, thumb);
 
             // 왼팔
           } else if (i === 1) {
@@ -438,8 +520,8 @@ const HuggyWuggy = () => {
                 rotation: (Math.PI / 180) * 340,
                 startAngle: 0,
                 endAngle: Math.PI * 2,
-                fillStyle: "yellow",
               },
+              fillStyle: "yellow",
             });
             const thumb = new Shape({
               ellipse: {
@@ -450,11 +532,11 @@ const HuggyWuggy = () => {
                 rotation: (Math.PI / 180) * 135,
                 startAngle: 0,
                 endAngle: Math.PI * 2,
-                fillStyle: "yellow",
               },
+              fillStyle: "yellow",
             });
 
-            drawQueue.unshift(palm, thumb);
+            drawDeque.unshift(palm, thumb);
 
             // 다리
           } else {
@@ -480,28 +562,28 @@ const HuggyWuggy = () => {
                 rotation: 0,
                 startAngle: 0,
                 endAngle: Math.PI * 2,
-                fillStyle: "yellow",
               },
+              fillStyle: "yellow",
             });
 
-            drawQueue.unshift(foot);
+            drawDeque.unshift(foot);
           }
 
           const limb = new Shape({
             quadraticCurve: {
               moveTo: { x, y },
-              QuadraticCurveTo: {
+              quadraticCurveTo: {
                 cpx: controlX,
                 cpy: controlY,
                 x: jointX,
                 y: jointY,
               },
-              strokeStyle: BODY_COLOR,
-              lineWidth: LIMBS_WIDTH,
             },
+            strokeStyle: BODY_COLOR,
+            lineWidth: LIMBS_WIDTH,
           });
 
-          drawQueue.push(limb);
+          drawDeque.push(limb);
         }
       }
 
@@ -512,10 +594,9 @@ const HuggyWuggy = () => {
           y: mouseY - BODY_HEIGHT / 2,
           width: BODY_WIDTH,
           height: BODY_HEIGHT - BODY_HEIGHT / 5,
-          fillStyle: BODY_COLOR,
         },
+        fillStyle: BODY_COLOR,
       });
-
       const shoulder = new Shape({
         arc: {
           x: mouseX,
@@ -523,10 +604,9 @@ const HuggyWuggy = () => {
           radius: BODY_WIDTH / 2,
           startAngle: Math.PI,
           endAngle: Math.PI * 2,
-          fillStyle: BODY_COLOR,
         },
+        fillStyle: BODY_COLOR,
       });
-
       const ass = new Shape({
         arc: {
           x: mouseX,
@@ -534,8 +614,8 @@ const HuggyWuggy = () => {
           radius: BODY_WIDTH / 2,
           startAngle: Math.PI * 2,
           endAngle: Math.PI * 3,
-          fillStyle: BODY_COLOR,
         },
+        fillStyle: BODY_COLOR,
       });
 
       // 머리
@@ -551,46 +631,84 @@ const HuggyWuggy = () => {
         },
       });
 
-      drawQueue.push(body, shoulder, ass, head);
-
-      for (let i = 0; i < drawQueue.length; i++) {
-        const shape = drawQueue[i];
-        shape.draw();
-      }
-
       // spotlight
-      ctx!.beginPath();
-      const gradient = ctx!.createRadialGradient(
-        mouseX,
-        mouseY,
-        0,
-        mouseX,
-        mouseY,
-        Math.min(...cvsSize) * 2
-      );
-      gradient.addColorStop(0.01, "rgba(200, 255, 255, 0)");
-      gradient.addColorStop(0.03, "rgba(49, 63, 62, 0)");
-      gradient.addColorStop(0.06, "rgba(33, 33, 33, 0.5)");
-      gradient.addColorStop(0.08, "rgba(33, 33, 33, 0.8)");
-      gradient.addColorStop(0.1, "rgba(33, 33, 33, 0.9)");
-      gradient.addColorStop(0.15, "rgba(33, 33, 33, 1)");
-      ctx!.arc(mouseX, mouseY, Math.max(...cvsSize) * 2, Math.PI * 2, 0);
-      ctx!.fillStyle = gradient;
-      ctx!.fill();
-      ctx!.closePath();
-
-      ANIMATION_FRAME_ID = requestAnimationFrame(() => {
-        updateFeet();
-        draw(feet);
+      const spotlight = new Shape({
+        radialGradient: {
+          x0: mouseX,
+          y0: mouseY,
+          r0: 0,
+          x1: mouseX,
+          y1: mouseY,
+          r1: Math.max(...cvsSize) * 1.5,
+        },
+        colorStops: [
+          [0.01, "rgba(200, 255, 255, 0)"],
+          [0.03, "rgba(49, 63, 62, 0)"],
+          [0.06, "rgba(33, 33, 33, 0.5)"],
+          [0.08, "rgba(33, 33, 33, 0.8)"],
+          [0.1, "rgba(33, 33, 33, 0.9)"],
+          [0.15, "rgba(33, 33, 33, 1)"],
+        ],
+        arc: {
+          x: mouseX,
+          y: mouseY,
+          radius: Math.max(...cvsSize) * 2,
+          startAngle: Math.PI * 2,
+          endAngle: 0,
+        },
       });
-    };
 
-    draw(feet);
+      drawDeque.push(body, shoulder, ass, head, spotlight);
+
+      const clear = new Shape({
+        clearRect: { x: 0, y: 0, width: cvsWidth, height: cvsHeight },
+      });
+
+      drawDeque.unshift(clear);
+
+      // 덱 실행
+      while (drawDeque.length > 0) {
+        const shape = drawDeque.shift();
+        shape?.draw();
+      }
+    },
+    []
+  );
+
+  const updateAndDraw = useCallback(() => {
+    ANIMATION_FRAME_ID.current = requestAnimationFrame(() => {
+      updateFeet({
+        mousePos,
+        dots,
+        env: ENV,
+        nearDotSetter: setNearDots,
+        feetSetter: setFeet,
+        sortFx: dotSort,
+      });
+      draw({
+        mousePos,
+        cvsSize,
+        Shape: shape,
+        feet,
+        dots,
+        nearDots,
+        env: ENV,
+      });
+
+      updateAndDraw();
+    });
+  }, [ENV, cvsSize, dots, draw, feet, mousePos, nearDots, shape, updateFeet]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    updateAndDraw();
 
     return () => {
-      ANIMATION_FRAME_ID && cancelAnimationFrame(ANIMATION_FRAME_ID);
+      ANIMATION_FRAME_ID.current &&
+        cancelAnimationFrame(ANIMATION_FRAME_ID.current);
     };
-  }, [ANIMATION_FRAME_ID, ctx, cvsSize, dots, feet, isReady, mousePos]);
+  }, [isReady, updateAndDraw]);
 
   return (
     <main ref={containerRef} className={styles.container}>
@@ -605,86 +723,3 @@ const HuggyWuggy = () => {
 };
 
 export default HuggyWuggy;
-
-// for (let i = 0; i < (feet?.length || 0); i++) {
-//   const { x, y } = feet[i];
-//   // 손
-//   if (i <= 1) {
-//     // 오른손
-//     if (i === 0) {
-//       ctx!.beginPath();
-//       ctx!.ellipse(
-//         x,
-//         y - LIMBS_WIDTH / 4,
-//         LIMBS_WIDTH * 0.5,
-//         LIMBS_WIDTH * 0.8,
-//         (Math.PI / 180) * 20,
-//         0,
-//         Math.PI * 2
-//       );
-//       ctx!.fillStyle = "yellow";
-//       ctx!.fill();
-//       ctx!.closePath();
-
-//       ctx!.beginPath();
-//       ctx!.ellipse(
-//         x - LIMBS_WIDTH / 2,
-//         y - LIMBS_WIDTH / 4,
-//         LIMBS_WIDTH * 0.4,
-//         LIMBS_WIDTH * 0.2,
-//         (Math.PI / 180) * 45,
-//         0,
-//         Math.PI * 2
-//       );
-//       ctx!.fillStyle = "yellow";
-//       ctx!.fill();
-//       ctx!.closePath();
-
-//       // 왼손
-//     } else {
-//       ctx!.beginPath();
-//       ctx!.ellipse(
-//         x,
-//         y - LIMBS_WIDTH / 4,
-//         LIMBS_WIDTH * 0.5,
-//         LIMBS_WIDTH * 0.8,
-//         (Math.PI / 180) * 340,
-//         0,
-//         Math.PI * 2
-//       );
-//       ctx!.fillStyle = "yellow";
-//       ctx!.fill();
-//       ctx!.closePath();
-
-//       ctx!.beginPath();
-//       ctx!.ellipse(
-//         x + LIMBS_WIDTH / 2,
-//         y - LIMBS_WIDTH / 4,
-//         LIMBS_WIDTH * 0.4,
-//         LIMBS_WIDTH * 0.2,
-//         (Math.PI / 180) * 135,
-//         0,
-//         Math.PI * 2
-//       );
-//       ctx!.fillStyle = "yellow";
-//       ctx!.fill();
-//       ctx!.closePath();
-//     }
-
-//     // 발
-//   } else {
-//     ctx!.beginPath();
-//     ctx!.ellipse(
-//       x,
-//       y - LIMBS_WIDTH / 5,
-//       LIMBS_WIDTH * 0.6,
-//       LIMBS_WIDTH * 0.8,
-//       0,
-//       0,
-//       Math.PI * 2
-//     );
-//     ctx!.fillStyle = "yellow";
-//     ctx!.fill();
-//     ctx!.closePath();
-//   }
-// }

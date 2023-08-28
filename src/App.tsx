@@ -5,22 +5,38 @@ import Index from "./pages/Index";
 import HuggyWuggy from "./pages/HuggyWuggy";
 import Dots from "./pages/Dots";
 import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 
 function App() {
   return (
     <div className="App">
       <BrowserRouter>
         <header className="app__header">
-          <Link to="/" className="app__header__title">
-            <h1>Interactive</h1>
-          </Link>
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              isActive ? "nav--active app__header__title" : "app__header__title"
+            }
+          >
+            <h1>INTERACTIVE</h1>
+          </NavLink>
           <nav className="app__header__nav">
             <ul>
               <li>
-                <Link to="/dots">dots</Link>
+                <NavLink
+                  to="/dots"
+                  className={({ isActive }) => (isActive ? "nav--active" : "")}
+                >
+                  DOTS
+                </NavLink>
               </li>
               <li>
-                <Link to="/huggywuggy">Huggy Wuggy</Link>
+                <NavLink
+                  to="/huggywuggy"
+                  className={({ isActive }) => (isActive ? "nav--active" : "")}
+                >
+                  HUGGY WUGGY
+                </NavLink>
               </li>
             </ul>
           </nav>

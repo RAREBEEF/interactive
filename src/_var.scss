@@ -23,9 +23,8 @@ $red: #ff3636;
 }
 
 @mixin page-container {
-  @include fullVw {
-    height: calc(100vh - 3rem);
-    height: calc(100dvh - 3rem);
-    min-height: 500px;
+  @include fullVw;
+  @include fullVh {
+    minheight: 500px;
   }
 }

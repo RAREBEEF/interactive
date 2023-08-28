@@ -3,7 +3,7 @@
 .App {
   @include var.fullVh;
   @include var.fullVw;
-  color: var.$black;
+  color: var.$gray;
 
   * {
     box-sizing: border-box;
@@ -20,13 +20,19 @@
 
     a {
       text-decoration: none;
+      color: var.$gray;
+      font-weight: 700;
+    }
+
+    .nav--active {
       color: var.$black;
     }
 
     .app__header__title {
       display: flex;
       align-items: center;
-      border: 1px solid var.$gray;
+      border-right: 3px solid var.$gray;
+      border-bottom: 3px solid var.$gray;
       padding: 0rem 2rem;
     }
 
@@ -41,7 +47,8 @@
         li {
           height: 100%;
           flex-grow: 1;
-          border: 1px solid var.$gray;
+          border-right: 3px solid var.$gray;
+          border-bottom: 3px solid var.$gray;
           a {
             @include var.center;
             width: 100%;

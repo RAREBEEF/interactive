@@ -1,5 +1,7 @@
 import {
+  Dispatch,
   MouseEvent,
+  SetStateAction,
   TouchEvent,
   useCallback,
   useEffect,
@@ -11,6 +13,16 @@ import styles from "./Dots.module.scss";
 import _ from "lodash";
 import useShape from "../hooks/useShape";
 
+interface ENV {
+  SPEED: number;
+  AREA_DIVIDE: number;
+  AREA_GAP: number;
+  DOT_COLOR: string;
+  LINE_COLOR: string;
+  NEAR_DOT_COLOR: string;
+  MOUSE_RANGE: number;
+}
+
 interface Dot {
   x: number;
   y: number;
@@ -19,7 +31,6 @@ interface Dot {
   radius: number;
   startAngle: number;
   endAngle: number;
-  color: string;
   active: boolean;
 }
 
@@ -42,22 +53,24 @@ const Dots = () => {
   const [dots, setDots] = useState<Array<Dot>>([]);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
-  const Shape = useShape(ctx);
-
+  const shape = useShape(ctx);
   const isReady = useMemo(
     () => !!cvs && !!ctx && !!container,
     [cvs, ctx, container]
   );
-
-  const SPEED = 1;
-  const AREA_DIVIDE = 10;
-  const AREA_GAP = 20;
-  const DOT_COLOR = "white";
-  const NEAR_DOT_COLOR = "yellow";
-  const MOUSE_RANGE = useMemo(
-    () => (cvsSize[0] / AREA_DIVIDE) * 1.5,
-    [cvsSize]
-  );
+  const ENV = useMemo(() => {
+    const areaDivide = 20;
+    return {
+      SPEED: 1,
+      AREA_DIVIDE: areaDivide,
+      AREA_GAP: 10,
+      DOT_COLOR: "lightgray",
+      LINE_COLOR: "gray",
+      NEAR_DOT_COLOR: "black",
+      MOUSE_RANGE: (Math.min(...cvsSize) / areaDivide) * 2,
+    };
+  }, [cvsSize]);
+  const ANIMATION_FRAME_ID = useRef<null | number>(null);
 
   // 컨테이너와 캔버스 체크 & 상태 저장
   useEffect(() => {
@@ -65,35 +78,36 @@ const Dots = () => {
     setContainer(containerRef.current);
     setCvs(cvsRef.current);
     setCtx(cvsRef.current.getContext("2d"));
-    document.body.style.cursor = "none";
+    // document.body.style.cursor = "none";
 
     return () => {
       document.body.style.cursor = "auto";
     };
   }, [containerRef, cvsRef]);
 
-  // 최초 및 리사이즈 시 렌더링
+  // 최초 및 리사이즈 시 영역 구분 및 점 생성
   const createDots = useCallback(
-    (width: number, height: number) => {
+    (cvsWidth: number, cvsHeight: number) => {
       if (!isReady) return;
 
+      const { AREA_GAP, AREA_DIVIDE } = ENV;
       const dots: Array<Dot> = [];
 
       // 캔버스 사이즈 지정
-      cvs!.width = width;
-      cvs!.height = height;
+      cvs!.width = cvsWidth;
+      cvs!.height = cvsHeight;
 
       // 영역 구분
       const areas: Array<Area> = [];
-      const areaWidth = (width - AREA_GAP * (AREA_DIVIDE - 1)) / AREA_DIVIDE;
-      const areaHeight = (height - AREA_GAP * (AREA_DIVIDE - 1)) / AREA_DIVIDE;
+      const areaWidth = (cvsWidth - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
+      const areaHeight = (cvsHeight - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
 
       for (let i = 1; i <= AREA_DIVIDE; i++) {
-        const startY = (areaHeight + AREA_GAP) * (i - 1);
+        const startY = AREA_GAP / 2 + (areaHeight + AREA_GAP) * (i - 1);
         const endY = startY + areaHeight;
 
         for (let j = 1; j <= AREA_DIVIDE; j++) {
-          const startX = (areaWidth + AREA_GAP) * (j - 1);
+          const startX = AREA_GAP / 2 + (areaWidth + AREA_GAP) * (j - 1);
           const endX = startX + areaWidth;
 
           areas.push({
@@ -115,26 +129,16 @@ const Dots = () => {
         const x = Math.floor(Math.random() * (endX - startX) + startX);
         const y = Math.floor(Math.random() * (endY - startY) + startY);
 
-        const dot = {
+        const dot: Dot = {
           x,
           y,
-          targetX: null,
-          targetY: null,
           originX: x,
           originY: y,
           radius: 5,
           startAngle: 0,
           endAngle: Math.PI * 2,
-          color: DOT_COLOR,
           active: false,
         };
-
-        // ctx!.beginPath();
-        // ctx!.strokeStyle = "blue";
-        // ctx!.lineWidth = 1;
-
-        // ctx!.strokeRect(startX, startY, areaWidth, areaHeight);
-        // ctx!.closePath();
 
         dots.push(dot);
       }
@@ -194,32 +198,41 @@ const Dots = () => {
     setMousePos(mousePos);
   };
 
-  useEffect(() => {
-    if (!isReady) return;
+  // 점 위치 업데이트
+  const updateDots = useCallback(
+    ({
+      dotsSetter,
+      mousePos,
+      env,
+    }: {
+      dotsSetter: Dispatch<SetStateAction<Array<Dot>>>;
+      mousePos: [number, number];
+      env: ENV;
+    }) => {
+      const [mouseX, mouseY] = mousePos;
 
-    const [mouseX, mouseY] = mousePos;
-
-    // 마우스와 점들의 거리 계산
-    const updateDots = () => {
-      setDots((prev) => {
+      dotsSetter((prev) => {
+        const { MOUSE_RANGE, SPEED } = env;
         const newDots: Array<Dot> = [];
 
         for (const dot of prev) {
-          let speed = SPEED;
+          // 마우스와 점 사이의 거리를 계산, 거리가 MOUSE_RANGE 이하일 경우 active
           const { x: dotX, originX, y: dotY, originY } = dot;
           const mouseDeltaX = mouseX - originX;
           const mouseDeltaY = mouseY - originY;
           const mouseDistance = Math.sqrt(mouseDeltaX ** 2 + mouseDeltaY ** 2);
           const active = mouseDistance <= MOUSE_RANGE ? true : false;
           let x, y, targetX, targetY: number;
+          let curSpeed = SPEED;
 
+          // active 여부에 따라 목표 지점을 결정
           if (active) {
             targetX = mouseX - mouseDeltaX * 0.7;
             targetY = mouseY - mouseDeltaY * 0.7;
           } else {
             targetX = originX;
             targetY = originY;
-            speed /= 10;
+            curSpeed /= 5;
           }
 
           const deltaX = targetX - dotX; // 현재 x와 타겟 x의 거리
@@ -227,15 +240,19 @@ const Dots = () => {
           // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
-          if (distance > speed) {
+          // 현재 속도보다 남은 거리가 클 경우
+          // 속력을 계산해 위치를 업데이트한다.
+          if (distance > curSpeed) {
             // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
             const angle = Math.atan2(deltaY, deltaX);
             // 속도와 각도를 통해 각 방향의 속력 구하기
-            const velocityX = speed * Math.cos(angle);
-            const velocityY = speed * Math.sin(angle);
+            const velocityX = curSpeed * Math.cos(angle);
+            const velocityY = curSpeed * Math.sin(angle);
             // 새로운 x,y 좌표 계산
             x = dotX + velocityX;
             y = dotY + velocityY;
+            // 현재 속도보다 남은 거리가 작을 경우
+            // 타겟 위치로 바로 이동한다.
           } else {
             x = targetX;
             y = targetY;
@@ -244,7 +261,6 @@ const Dots = () => {
           newDots.push({
             ...dot,
             active,
-            color: active ? NEAR_DOT_COLOR : DOT_COLOR,
             x,
             y,
           });
@@ -252,44 +268,81 @@ const Dots = () => {
 
         return newDots;
       });
-    };
+    },
+    []
+  );
 
-    // 렌더
-    const draw = (dots: Array<Dot>) => {
+  // 렌더
+  const draw = useCallback(
+    ({
+      mousePos,
+      cvsSize,
+      env,
+      Shape,
+      areas,
+      dots,
+    }: {
+      mousePos: [number, number];
+      cvsSize: [number, number];
+      env: ENV;
+      Shape: typeof shape;
+      areas: Array<Area>;
+      dots: Array<Dot>;
+    }) => {
+      const { NEAR_DOT_COLOR, DOT_COLOR, LINE_COLOR } = env;
+      const [mouseX, mouseY] = mousePos;
+      const [cvsWidth, cvsHeight] = cvsSize;
+
+      // draw를 순차적으로 실행할 큐
+      // Shape 객체를 담는다.
       const drawQueue: Array<InstanceType<typeof Shape>> = [];
 
-      ctx!.clearRect(0, 0, cvsSize[0], cvsSize[1]);
+      // 캔버스 초기화를 큐의 맨 앞에 넣기
+      const clear = new Shape({
+        clearRect: { x: 0, y: 0, width: cvsWidth, height: cvsHeight },
+      });
 
-      for (const area of areas) {
-        const { startX, startY, width, height } = area;
-        ctx!.beginPath();
-        ctx!.strokeStyle = "blue";
-        ctx!.lineWidth = 1;
-        ctx!.strokeRect(startX, startY, width, height);
-        ctx!.closePath();
-      }
+      drawQueue.push(clear);
 
+      // 디버그용 영역 구분선
+      // for (const area of areas) {
+      //   const { startX, startY, width, height } = area;
+      //   const areaShape = new Shape({
+      //     strokeRect: {
+      //       x: startX,
+      //       y: startY,
+      //       width,
+      //       height,
+      //     },
+      //     lineWidth: 2,
+      //     strokeStyle: "green",
+      //   });
+      //   drawQueue.push(areaShape);
+      // }
+
+      // 점들을 Shape 객체로 만들고 큐에 등록
       for (const curDot of dots) {
-        const { x, y, radius, startAngle, endAngle, color, active } = curDot;
+        const { x, y, radius, startAngle, endAngle, active } = curDot;
 
+        // 점의 상태에 active일 경우 연결선을 그린다.
         if (active) {
           const controlX = (x + mouseX) / 2 + 20;
           const controlY = (y + mouseY) / 2 - 20;
           const curveShpae = new Shape({
             quadraticCurve: {
               moveTo: { x, y },
-              QuadraticCurveTo: {
+              quadraticCurveTo: {
                 cpx: controlX,
                 cpy: controlY,
                 x: mouseX,
                 y: mouseY,
               },
-              strokeStyle: "gray",
-              lineWidth: 2,
             },
+            strokeStyle: LINE_COLOR,
+            lineWidth: 2,
           });
 
-          drawQueue.push(curveShpae);
+          // drawQueue.push(curveShpae);
         }
 
         const dotShape = new Shape({
@@ -299,42 +352,66 @@ const Dots = () => {
             radius,
             startAngle,
             endAngle,
-            fillStyle: color,
           },
+          fillStyle: active ? NEAR_DOT_COLOR : DOT_COLOR,
         });
 
         drawQueue.push(dotShape);
       }
 
-      const centerShape = new Shape({
-        arc: {
-          x: mouseX,
-          y: mouseY,
-          radius: 10,
-          startAngle: Math.PI * 2,
-          endAngle: 0,
-          fillStyle: NEAR_DOT_COLOR,
-        },
+      // 마우스 위치에 그릴 원
+      // const centerShape = new Shape({
+      //   arc: {
+      //     x: mouseX,
+      //     y: mouseY,
+      //     radius: 10,
+      //     startAngle: Math.PI * 2,
+      //     endAngle: 0,
+      //   },
+      //   fillStyle: NEAR_DOT_COLOR,
+      // });
+
+      // drawQueue.push(centerShape);
+
+      // 큐 실행
+      while (drawQueue.length > 0) {
+        const shape = drawQueue.shift();
+        shape?.draw();
+      }
+    },
+    []
+  );
+
+  const updateAndDraw = useCallback(() => {
+    ANIMATION_FRAME_ID.current = requestAnimationFrame(() => {
+      updateDots({
+        dotsSetter: setDots,
+        mousePos,
+        env: ENV,
+      });
+      draw({
+        mousePos,
+        cvsSize,
+        env: ENV,
+        Shape: shape,
+        areas,
+        dots,
       });
 
-      drawQueue.push(centerShape);
-
-      for (let i = 0; i < drawQueue.length; i++) {
-        const shape = drawQueue[i];
-        shape.draw();
-      }
-    };
-
-    const id = requestAnimationFrame(() => {
-      console.log("frame");
-      updateDots();
-      draw(dots);
+      updateAndDraw();
     });
+  }, [ENV, shape, areas, cvsSize, dots, draw, mousePos, updateDots]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    updateAndDraw();
 
     return () => {
-      cancelAnimationFrame(id);
+      ANIMATION_FRAME_ID.current &&
+        cancelAnimationFrame(ANIMATION_FRAME_ID.current);
     };
-  }, [ctx, cvsSize, dots, isReady, mousePos, MOUSE_RANGE, Shape]);
+  }, [updateAndDraw, isReady]);
 
   return (
     <main ref={containerRef} className={styles.container}>

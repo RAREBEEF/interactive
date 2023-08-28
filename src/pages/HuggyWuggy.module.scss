@@ -7,6 +7,9 @@
   overflow: hidden;
 
   .canvas {
-    background-color: var.$white;
+    touch-action: none;
+    background-image: url("../images/tile.png");
+    background-size: 50vmin;
+    background-repeat: repeat;
   }
 }

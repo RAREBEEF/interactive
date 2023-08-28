@@ -338,7 +338,7 @@ const HuggyWuggy = () => {
           const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
           // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-          const SPEED = Math.round(distance / 10);
+          const SPEED = Math.round(distance / 5);
 
           // 현재 속도가 0보다 클 경우
           // 속력을 계산해 위치를 업데이트한다.

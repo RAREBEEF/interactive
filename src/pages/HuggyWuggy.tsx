@@ -41,7 +41,6 @@ interface ENV {
   BODY_COLOR: string;
   LINE_COLOR: string;
   DOT_COLOR: string;
-  SPEED: number;
   BODY_WIDTH: number;
   BODY_HEIGHT: number;
   LIMBS_WIDTH: number;
@@ -103,7 +102,6 @@ const HuggyWuggy = () => {
       LINE_COLOR: "green",
       DOT_COLOR: "black",
       FACE: faceSvg,
-      SPEED: cvsSize[0] / areaDivide / 10,
       BODY_WIDTH: bodyWidth,
       BODY_HEIGHT: bodyWidth * 2,
       LIMBS_WIDTH: bodyWidth * 0.8,
@@ -242,14 +240,12 @@ const HuggyWuggy = () => {
       dots,
       nearDotSetter,
       feetSetter,
-      env,
       sortFx,
     }: {
       mousePos: [number, number];
       dots: Dots;
       nearDotSetter: Dispatch<SetStateAction<NearDots>>;
       feetSetter: Dispatch<SetStateAction<Feet>>;
-      env: ENV;
       sortFx: (
         dots: Array<{
           id: string;
@@ -260,7 +256,6 @@ const HuggyWuggy = () => {
         distance: number;
       }>;
     }) => {
-      const { SPEED } = env;
       const [mouseX, mouseY] = mousePos;
 
       const quadrant1: Array<DotDistance> = [],
@@ -343,11 +338,12 @@ const HuggyWuggy = () => {
           const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
           // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+          const SPEED = Math.round(distance / 10);
 
-          // 현재 속도보다 남은 거리가 클 경우
+          // 현재 속도가 0보다 클 경우
           // 속력을 계산해 위치를 업데이트한다.
-          if (distance > SPEED) {
-            // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
+          if (SPEED > 0) {
+            // 현재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
             const angle = Math.atan2(deltaY, deltaX);
             // 속도와 각도를 통해 각 방향의 속력 구하기
             const velocityX = SPEED * Math.cos(angle);
@@ -355,7 +351,7 @@ const HuggyWuggy = () => {
             // 새로운 x,y 좌표 계산
             x = footX + velocityX;
             y = footY + velocityY;
-            // 현재 속도보다 남은 거리가 작을 경우
+            // 현재 속도가 0보다 작거나 같을 경우
             // 타겟 위치로 바로 이동한다.
           } else {
             x = targetX;
@@ -680,7 +676,6 @@ const HuggyWuggy = () => {
       updateFeet({
         mousePos,
         dots,
-        env: ENV,
         nearDotSetter: setNearDots,
         feetSetter: setFeet,
         sortFx: dotSort,

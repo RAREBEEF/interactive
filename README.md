@@ -1,4 +1,3 @@
-# **Canvas API를 활용한 Interactive 아이디어 구현**
 여태 공부 해오면서 Three나 Matter 등의 라이브러리를 활용한 canvas는 아주 살짝 맛을 본 적이 있지만 JS의 기본 Canvas API는 사용해 본 적이 없다.
 
 따라서 간단한 아이디어를 구현하며 Canvas API의 기본 사용법에 대해 알아보기로 하였다.
@@ -8,10 +7,10 @@
 <br />
 
 # **Dots**
+
 ![](https://velog.velcdn.com/images/drrobot409/post/beeae371-a343-4957-ad58-2b5742955d6d/image.png)
 
-
-캔버스에 여러 점들을 찍어두고 마우스의 움직임에 따라 마우스와 인접한 점들이 따라 움직이는 아이디어를 구현해 보았다. 
+캔버스에 여러 점들을 찍어두고 마우스의 움직임에 따라 마우스와 인접한 점들이 따라 움직이는 아이디어를 구현해 보았다.
 
 흔하게 볼 수 있는 아이디어지만 첫 Canvas API 사용인 만큼 간단하게 구현할 수 있는 아이디어로 선정하였다.
 
@@ -86,16 +85,14 @@ useEffect(() => {
 
 ## **3. 영역 구분 및 점 생성**
 
-캔버스에 점을 고르게 분포하기 위해 캔버스의 영역을 균일하게 나누고 각 영역당 하나의 점만 생성하는 방식을 사용하였다.  
+캔버스에 점을 고르게 분포하기 위해 캔버스의 영역을 균일하게 나누고 각 영역당 하나의 점만 생성하는 방식을 사용하였다.
 
 ### **3-1. 영역 구분**
+
 캔버스와 컨텍스트가 준비되면 캔버스의 사이즈를 지정하고 캔버스를 지정된 개수에 맞게 영역을 나눈다.
 
 _(아래는 참고용으로 첨부한 스크린샷이며 현재 단계에서는 아직 요소들을 캔버스에 그리지 않는다.)_
 ![](https://velog.velcdn.com/images/drrobot409/post/738c50f4-7d01-4926-b8f0-12d812b2a794/image.png)
-
-
-
 
 ```tsx
 // 캔버스 사이즈 지정
@@ -137,15 +134,13 @@ setAreas(areas);
 
 ### **3-2. 점 생성**
 
-영역당 하나씩 랜덤한 위치에 점을 생성한다.  
+영역당 하나씩 랜덤한 위치에 점을 생성한다.
 
 생성한 점은 캔버스에 바로 그리지 않고 상태에 저장해둔다.
 
 _(아래는 참고용으로 첨부한 스크린샷이며 현재 단계에서는 아직 요소들을 캔버스에 그리지 않는다.)_
 
 ![](https://velog.velcdn.com/images/drrobot409/post/75afd0a4-4d7c-413a-8011-88a073990b9c/image.png)
-
-
 
 ```ts
 const dots: Array<Dot> = [];
@@ -182,66 +177,66 @@ setDots(dots);
 ```ts
 // 랜덤 위치에 고르게 점을 분포하는 함수
 const createDots = useCallback(
-    (cvsWidth: number, cvsHeight: number) => {
-      if (!isReady) return;
+  (cvsWidth: number, cvsHeight: number) => {
+    if (!isReady) return;
 
-      const { AREA_GAP, AREA_DIVIDE } = ENV;
-      const dots: Array<Dot> = [];
+    const { AREA_GAP, AREA_DIVIDE } = ENV;
+    const dots: Array<Dot> = [];
 
-      cvs!.width = cvsWidth;
-      cvs!.height = cvsHeight;
+    cvs!.width = cvsWidth;
+    cvs!.height = cvsHeight;
 
-      const areas: Array<Area> = [];
-      const areaWidth = (cvsWidth - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
-      const areaHeight = (cvsHeight - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
+    const areas: Array<Area> = [];
+    const areaWidth = (cvsWidth - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
+    const areaHeight = (cvsHeight - AREA_GAP * AREA_DIVIDE) / AREA_DIVIDE;
 
-      for (let i = 1; i <= AREA_DIVIDE; i++) {
-        const startY = AREA_GAP / 2 + (areaHeight + AREA_GAP) * (i - 1);
-        const endY = startY + areaHeight;
+    for (let i = 1; i <= AREA_DIVIDE; i++) {
+      const startY = AREA_GAP / 2 + (areaHeight + AREA_GAP) * (i - 1);
+      const endY = startY + areaHeight;
 
-        for (let j = 1; j <= AREA_DIVIDE; j++) {
-          const startX = AREA_GAP / 2 + (areaWidth + AREA_GAP) * (j - 1);
-          const endX = startX + areaWidth;
+      for (let j = 1; j <= AREA_DIVIDE; j++) {
+        const startX = AREA_GAP / 2 + (areaWidth + AREA_GAP) * (j - 1);
+        const endX = startX + areaWidth;
 
-          areas.push({
-            startX,
-            startY,
-            endX,
-            endY,
-            width: areaWidth,
-            height: areaHeight,
-          });
-        }
+        areas.push({
+          startX,
+          startY,
+          endX,
+          endY,
+          width: areaWidth,
+          height: areaHeight,
+        });
       }
+    }
 
-      setAreas(areas);
+    setAreas(areas);
 
-      for (const area of areas) {
-        const { startX, endX, startY, endY } = area;
-        const x = Math.floor(Math.random() * (endX - startX) + startX);
-        const y = Math.floor(Math.random() * (endY - startY) + startY);
+    for (const area of areas) {
+      const { startX, endX, startY, endY } = area;
+      const x = Math.floor(Math.random() * (endX - startX) + startX);
+      const y = Math.floor(Math.random() * (endY - startY) + startY);
 
-        const dot: Dot = {
-          x,
-          y,
-          originX: x,
-          originY: y,
-          radius: 5,
-          startAngle: 0,
-          endAngle: Math.PI * 2,
-          active: false,
-        };
+      const dot: Dot = {
+        x,
+        y,
+        originX: x,
+        originY: y,
+        radius: 5,
+        startAngle: 0,
+        endAngle: Math.PI * 2,
+        active: false,
+      };
 
-        dots.push(dot);
-      }
+      dots.push(dot);
+    }
 
-      setDots(dots);
-    },
-    [isReady, cvs]
-  );
+    setDots(dots);
+  },
+  [isReady, cvs]
+);
 ```
 
-이 함수는 앞서 등록한 컨테이너 리사이즈 옵저버에 포함하여 최초 로드와 리사이즈시 영역과 점을  생성하도록 한다.
+이 함수는 앞서 등록한 컨테이너 리사이즈 옵저버에 포함하여 최초 로드와 리사이즈시 영역과 점을 생성하도록 한다.
 
 ```ts
 const resizeObserver = useMemo(
@@ -338,12 +333,12 @@ const updateDots = ({
     return newDots;
   });
 };
-
 ```
 
 <br />
 
 ## **5. Shape 클래스**
+
 위에서 계산한 점이나 다른 도형들을 캔버스에 그리기 위해 `Shape` 클래스를 만들었다.
 
 `Shape` 클래스는 그릴 도형의 데이터를 인스턴스 속성으로 갖고 해당 속성을 바탕으로 캔버스에 도형을 그리는 인스턴스 메소드 `draw()`를 갖도록 하였다.
@@ -485,7 +480,6 @@ class Shape {
 이제 점들의 데이터를 받아서 Shape 객체로 만든 후 캔버스에 순서대로 그리는 함수를 작성한다.
 
 ```ts
-
 const draw = ({
   mousePos,
   cvsSize,
@@ -540,7 +534,6 @@ const draw = ({
     shape?.draw();
   }
 };
-
 ```
 
 <br />
@@ -588,10 +581,10 @@ useEffect(() => {
 <br />
 
 # **Huggy Wuggy**
+
 ![](https://velog.velcdn.com/images/drrobot409/post/d59bd519-0b00-4af9-a9d0-1fffff84f55d/image.png)
 
-
-두 번째 아이디어는 첫 번째 아이디어를 구현하던 도중 떠오른 아이디어이다. 
+두 번째 아이디어는 첫 번째 아이디어를 구현하던 도중 떠오른 아이디어이다.
 
 캔버스에 찍어둔 점들을 고정 좌표로 활용하고, 네 개의 점(손발)을 마우스와 인접한 고정 좌표로 이동시켜 마치 팔다리가 움직이는 것 같은 애니메이션을 구현하는 아이디어이다. 그리고 그 위에 캐릭터의 모습을 덧씌워 캐릭터가 벽을 타고 이동하는 모습을 연출해 보았다.
 
@@ -603,7 +596,7 @@ useEffect(() => {
 
 ## **1. 고정 좌표점 생성**
 
-영역을 구분하고 랜덤 위치에 점을 생성하는 등의 내용은 첫 번째 아이디어와 동일하지만, 각 점에 id를 부여하고 배열 대신 객체에 점 데이터를 저장한다는 차이점이 있다. 
+영역을 구분하고 랜덤 위치에 점을 생성하는 등의 내용은 첫 번째 아이디어와 동일하지만, 각 점에 id를 부여하고 배열 대신 객체에 점 데이터를 저장한다는 차이점이 있다.
 
 그 이유는 이후 각 점을 사분면으로 구분하고 거리순으로 정렬했을 때 id를 통해 점의 데이터를 빠르게 불러오기 위함이다.
 
@@ -635,20 +628,19 @@ setDots(dots);
 <br/>
 
 ## **2. 손발 위치 업데이트**
+
 이번 프로젝트에서는 모든 점이 움직이지 않고 4개의 손발만 움직이도록 한다.
 
 각 손발은 자신이 해당하는 사분면에서, 가장 마우스와 가까운 고정점의 위치로 이동하게 된다.
 
 따라서 각 고정점의 거리와 사분면을 계산하고 이후 손발의 위치를 계산하는 코드를 작성해야 한다.
 
-
-
 ### **2-1. 거리 계산 및 사분면 구분**
 
 _(아래와 같이 마우스를 기준으로 사분면을 나눈다.)_
 ![](https://velog.velcdn.com/images/drrobot409/post/88d6ac21-086b-4827-b2cf-d64243261b03/image.png)
 
-마우스의 위치를 기준으로 사분면을 나누고 각 점과 마우스 사이의 거리를 계산한다. 
+마우스의 위치를 기준으로 사분면을 나누고 각 점과 마우스 사이의 거리를 계산한다.
 
 점의 위치를 사분면으로 나누는 이유는 각 손발의 이동 영역을 각 사분면으로 제한하여 팔다리가 꼬여있지 않은 자연스러운 자세를 유지하기 위함이다.
 
@@ -692,6 +684,7 @@ for (const [id, dot] of Object.entries(dots)) {
 <br/>
 
 ### **2-2. 거리순 정렬**
+
 _(아래와 같이 각 사분면에서 마우스와 가장 가까운 점을 구한다.)_
 ![](https://velog.velcdn.com/images/drrobot409/post/f3400112-2070-453a-ac77-316528d6e54f/image.png)
 
@@ -760,19 +753,19 @@ setFeet((prev) => {
   let newFeet: Feet = prev;
 
   if (
-    !prev && 
+    !prev &&
     (!dots[nearDot1]) ||
       !dots[nearDot2] ||
       !dots[nearDot3] ||
       !dots[nearDot4])
   )
     return null;
-  
+
   // 이전 feet이 없을 경우 새로 할당
   newFeet ??= [
-    dots[nearDot1], 
-    dots[nearDot2], 
-    dots[nearDot3], 
+    dots[nearDot1],
+    dots[nearDot2],
+    dots[nearDot3],
     dots[nearDot4],
   ];
 
@@ -790,10 +783,11 @@ setFeet((prev) => {
     const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
     // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
     const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+    const SPEED = Math.round(distance / 10);
 
-    // 현재 속도보다 남은 거리가 클 경우
+    // 현재 속도가 0보다 클 경우
     // 속력을 계산해 위치를 업데이트한다.
-    if (distance > SPEED) {
+    if (SPEED > 0) {
       // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
       const angle = Math.atan2(deltaY, deltaX);
       // 속도와 각도를 통해 각 방향의 속력 구하기
@@ -802,7 +796,7 @@ setFeet((prev) => {
       // 새로운 x,y 좌표 계산
       x = footX + velocityX;
       y = footY + velocityY;
-      // 현재 속도보다 남은 거리가 작을 경우
+      // 현재 속도가 0보다 작거나 같을 경우
       // 타겟 위치로 바로 이동한다.
     } else {
       x = targetX;
@@ -823,20 +817,19 @@ setFeet((prev) => {
 <br />
 
 ### **2-4. 하나의 함수로 합치기**
+
 ```ts
 const updateFeet = ({
   mousePos,
   dots,
   nearDotSetter,
   feetSetter,
-  env,
   sortFx,
 }: {
   mousePos: [number, number];
   dots: Dots;
   nearDotSetter: Dispatch<SetStateAction<NearDots>>;
   feetSetter: Dispatch<SetStateAction<Feet>>;
-  env: ENV;
   sortFx: (
     dots: Array<{
       id: string;
@@ -847,7 +840,6 @@ const updateFeet = ({
     distance: number;
   }>;
 }) => {
-  const { SPEED } = env;
   const [mouseX, mouseY] = mousePos;
 
   const quadrant1: Array<DotDistance> = [],
@@ -927,11 +919,12 @@ const updateFeet = ({
       const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
       // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
       const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+      const SPEED = Math.round(distance / 10);
 
-      // 현재 속도보다 남은 거리가 클 경우
+      // 현재 속도가 0보다 클 경우
       // 속력을 계산해 위치를 업데이트한다.
-      if (distance > SPEED) {
-        // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
+      if (SPEED > 0) {
+        // 현재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
         const angle = Math.atan2(deltaY, deltaX);
         // 속도와 각도를 통해 각 방향의 속력 구하기
         const velocityX = SPEED * Math.cos(angle);
@@ -939,7 +932,7 @@ const updateFeet = ({
         // 새로운 x,y 좌표 계산
         x = footX + velocityX;
         y = footY + velocityY;
-        // 현재 속도보다 남은 거리가 작을 경우
+        // 현재 속도가 0보다 작거나 같을 경우
         // 타겟 위치로 바로 이동한다.
       } else {
         x = targetX;
@@ -961,7 +954,8 @@ const updateFeet = ({
 <br />
 
 ## **3. 그리기**
-이제 손발과 캐릭터의 모습을 캔버스에 그리면 된다. 
+
+이제 손발과 캐릭터의 모습을 캔버스에 그리면 된다.
 추가로 `radialGradient` 를 활용해 스포트라이트 효과를 넣어 보았다.
 
 캐릭터의 팔다리와 몸통은 캔버스의 `stroke` 와 `ellipse`, `quadraticCurve` 등을 이용하였고 머리는 참고 이미지를 바탕으로 일러스트레이터에서 직접 그린 svg를 `drawImage` 를 이용해 캔버스에 그렸다.
@@ -986,7 +980,8 @@ const draw = ({
   nearDots: NearDots;
   env: ENV;
 }) => {
-  const { LINE_COLOR, LIMBS_WIDTH, BODY_COLOR, BODY_HEIGHT, BODY_WIDTH, FACE } = env;
+  const { LINE_COLOR, LIMBS_WIDTH, BODY_COLOR, BODY_HEIGHT, BODY_WIDTH, FACE } =
+    env;
   const [mouseX, mouseY] = mousePos;
   const [cvsWidth, cvsHeight] = cvsSize;
 
@@ -1208,5 +1203,3 @@ const draw = ({
   }
 };
 ```
-
-

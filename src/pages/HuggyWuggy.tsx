@@ -158,9 +158,12 @@ const HuggyWuggy = () => {
         const { startX, endX, startY, endY } = area;
         const x = Math.floor(Math.random() * (endX - startX) + startX);
         const y = Math.floor(Math.random() * (endY - startY) + startY);
+
+        // 클라이밍 홀드 이미지 부여
         const image = new Image();
         const holdNum = Math.floor(Math.random() * 4) + 1;
         image.src = `/images/hold${holdNum}.png`;
+
         const dot = {
           x,
           y,
@@ -224,7 +227,6 @@ const HuggyWuggy = () => {
     setMousePos(mousePos);
   };
 
-  // 마우스에 맞춰 위치 계산 및 렌더
   // 팔다리 위치 계산
   const updateFeet = useCallback(
     ({
@@ -373,6 +375,7 @@ const HuggyWuggy = () => {
     []
   );
 
+  // 그리기
   const draw = useCallback(
     ({
       mousePos,
@@ -398,16 +401,10 @@ const HuggyWuggy = () => {
       const [mouseX, mouseY] = mousePos;
       const [cvsWidth, cvsHeight] = cvsSize;
 
+      // 그리기 명령 배열
       const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
 
       // 팔다리 몸통 그리기
-      drawCommands.push((ctx: CanvasRenderingContext2D) => {
-        ctx.fillStyle = BODY_COLOR;
-        ctx.lineWidth = LIMBS_WIDTH;
-        ctx.strokeStyle = BODY_COLOR;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-      });
       // 팔다리
       if (!!feet) {
         for (let i = 0; i < feet.length; i++) {
@@ -440,18 +437,20 @@ const HuggyWuggy = () => {
           }
 
           drawCommands.push((ctx: CanvasRenderingContext2D) => {
+            ctx.strokeStyle = BODY_COLOR;
+            ctx.lineCap = "round";
+            ctx.lineWidth = LIMBS_WIDTH;
+            ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.quadraticCurveTo(controlX, controlY, jointX, jointY);
+            ctx.stroke();
           });
         }
-
-        drawCommands.push((ctx: CanvasRenderingContext2D) => {
-          ctx.stroke();
-        });
       }
 
       // 몸통
       drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = BODY_COLOR;
         ctx.beginPath();
         ctx.rect(
           mouseX - BODY_WIDTH / 2,
@@ -465,6 +464,7 @@ const HuggyWuggy = () => {
 
       // 어깨
       drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = BODY_COLOR;
         ctx.beginPath();
         ctx.arc(
           mouseX,
@@ -479,6 +479,7 @@ const HuggyWuggy = () => {
 
       // 엉덩이
       drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = BODY_COLOR;
         ctx.beginPath();
         ctx.arc(
           mouseX,
@@ -499,6 +500,7 @@ const HuggyWuggy = () => {
           // 오른손
           if (i === 0) {
             drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.fillStyle = FEET_COLOR;
               ctx.beginPath();
               ctx.ellipse(
                 x,
@@ -524,6 +526,7 @@ const HuggyWuggy = () => {
             // 왼손
           } else if (i === 1) {
             drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.fillStyle = FEET_COLOR;
               ctx.beginPath();
               ctx.ellipse(
                 x,
@@ -549,6 +552,7 @@ const HuggyWuggy = () => {
             // 발
           } else {
             drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.fillStyle = FEET_COLOR;
               ctx.beginPath();
               ctx.ellipse(
                 x,
@@ -564,10 +568,6 @@ const HuggyWuggy = () => {
             });
           }
         }
-
-        drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = FEET_COLOR;
-        });
       }
 
       // 머리
@@ -591,9 +591,9 @@ const HuggyWuggy = () => {
         const img = new Image();
         img.src = `/images/flashlight.svg`;
 
-        // 중앙과 마우스x 사이 거리
+        // 캔버스 중앙과 마우스x 사이 거리
         const deltaFromCenterX = cvsWidth / 2 - mouseX;
-        // 바닥과 마우스y 사이 거리
+        // 캔버스 바닥과 마우스y 사이 거리
         const deltaFromBottomY = cvsHeight - mouseY;
         // // deltaFromBottomY 정규화
         const normalizedDeltaY = deltaFromBottomY / cvsHeight;
@@ -634,8 +634,8 @@ const HuggyWuggy = () => {
             image,
             x - (BODY_WIDTH * 1.5) / 2,
             y - BODY_WIDTH,
-            BODY_WIDTH * 1.5,
-            BODY_WIDTH * 1.5
+            BODY_WIDTH * 1.3,
+            BODY_WIDTH * 1.3
           );
         });
       }
@@ -645,7 +645,7 @@ const HuggyWuggy = () => {
         ctx.clearRect(0, 0, cvsWidth, cvsHeight);
       });
 
-      // 모든 커맨드 실행
+      // 모든 그리기 명령 실행
       for (let i = 0; i < drawCommands.length; i++) {
         const command = drawCommands[i];
         command(offscreenCtx);
@@ -683,6 +683,8 @@ const HuggyWuggy = () => {
       const [mouseX, mouseY] = mousePos;
       const [cvsWidth, cvsHeight] = cvsSize;
       const { LINE_COLOR } = env;
+
+      // 그리기 명령 배열
       const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
 
       // 디버그용 dot
@@ -710,6 +712,7 @@ const HuggyWuggy = () => {
             ctx.fill();
             ctx.closePath();
 
+            ctx.font = "bold 16px Arial";
             ctx.fillStyle = "black";
             ctx.fillText((j + 1).toString(), x - 8, y + 4);
           });
@@ -718,23 +721,18 @@ const HuggyWuggy = () => {
 
       // 디버그용 팔다리 표시
       if (!!feet) {
-        drawCommands.push((ctx: CanvasRenderingContext2D) => {
-          ctx.strokeStyle = "blue";
-          ctx.beginPath();
-        });
-        
         for (let i = 0; i < feet.length; i++) {
           const { x, y } = feet[i];
 
           drawCommands.push((ctx: CanvasRenderingContext2D) => {
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.lineTo(mouseX, mouseY);
+            ctx.stroke();
           });
         }
-
-        drawCommands.push((ctx: CanvasRenderingContext2D) => {
-          ctx.stroke();
-        });
       }
 
       // 디버그용 사분면 구분선
@@ -753,6 +751,7 @@ const HuggyWuggy = () => {
       drawCommands.push((ctx: CanvasRenderingContext2D) => {
         // 컨텍스트 회전하기 전에 각도 표시
         ctx.strokeStyle = "black";
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(cvsWidth / 2, mouseY);
         ctx.lineTo(cvsWidth / 2, cvsHeight);
@@ -844,7 +843,7 @@ const HuggyWuggy = () => {
         ctx.clearRect(0, 0, cvsWidth, cvsHeight);
       });
 
-      // 모든 커맨드 실행
+      // 모든 그리기 명령 실행
       for (let i = 0; i < drawCommands.length; i++) {
         const command = drawCommands[i];
         command(offscreenCtx);
@@ -936,15 +935,13 @@ const HuggyWuggy = () => {
         >
           {isDebug ? "디버그 모드 off" : "디버그 모드 on"}
         </button>
-        {/* {isDebug && (
+        {isDebug && (
           <div className={styles["description"]}>
-            <p>색상 : 사분면 구분</p>
-            <p>숫자 : 마우스와 가까운 순서</p>
             <p style={{ position: "absolute", left: 0, top: 0 }}>
               렌더링한 프레임 수 : {ANIMATION_FRAME_ID.current}
             </p>
           </div>
-        )} */}
+        )}
       </div>
       <canvas
         style={{ background: isDebug ? "white" : "none" }}

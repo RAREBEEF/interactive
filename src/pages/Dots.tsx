@@ -49,18 +49,13 @@ const Dots = () => {
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [cvs, setCvs] = useState<HTMLCanvasElement | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
-  const [offscreenCvs, setOffscreenCvs] = useState<HTMLCanvasElement | null>(
-    null
-  );
-  const [offscreenCtx, setOffscreenCtx] =
-    useState<CanvasRenderingContext2D | null>(null);
   const [areas, setAreas] = useState<Array<Area>>([]);
   const [dots, setDots] = useState<Array<Dot>>([]);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
   const isReady = useMemo(
-    () => !!cvs && !!ctx && !!container && !!offscreenCvs && !!offscreenCtx,
-    [cvs, ctx, container, offscreenCvs, offscreenCtx]
+    () => !!cvs && !!ctx && !!container,
+    [cvs, ctx, container]
   );
   const ENV = useMemo(() => {
     const areaDivide = 20;
@@ -82,10 +77,6 @@ const Dots = () => {
     setContainer(containerRef.current);
     setCvs(cvsRef.current);
     setCtx(cvsRef.current.getContext("2d"));
-    const offscreenCanvas = document.createElement("canvas");
-    const offscreenContext = offscreenCanvas.getContext("2d");
-    setOffscreenCvs(offscreenCanvas);
-    setOffscreenCtx(offscreenContext);
   }, [containerRef, cvsRef]);
 
   // 최초 및 리사이즈 시 영역 구분 및 점 생성
@@ -99,8 +90,6 @@ const Dots = () => {
       // 캔버스 사이즈 지정
       cvs!.width = cvsWidth;
       cvs!.height = cvsHeight;
-      offscreenCvs!.width = cvsWidth;
-      offscreenCvs!.height = cvsHeight;
 
       // 영역 구분
       const areas: Array<Area> = [];
@@ -244,10 +233,10 @@ const Dots = () => {
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
           const dampingFactor = 0.5; // 감쇠 계수
-          const curSpeed = distance / (active ? 10 : 30); // 남은 거리와 활성화 여부에 따라 속도 계산
+          const curSpeed = distance / (active ? 5 : 10); // 남은 거리와 활성화 여부에 따라 속도 계산
           const SPEED = curSpeed < 0.01 ? 0 : curSpeed * dampingFactor; // 감쇠 계수를 적용한 속도
 
-          // 현재 속도보다 남은 거리가 클 경우
+          // 속도가 0보다 클 경우
           // 속력을 계산해 위치를 업데이트한다.
           if (SPEED > 0) {
             // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
@@ -258,7 +247,7 @@ const Dots = () => {
             // 새로운 x,y 좌표 계산
             x = dotX + velocityX;
             y = dotY + velocityY;
-            // 현재 속도보다 남은 거리가 작을 경우
+            // 속도가 0보다 작을 경우
             // 타겟 위치로 바로 이동한다.
           } else {
             x = targetX;
@@ -279,34 +268,31 @@ const Dots = () => {
     []
   );
 
-  // 렌더
+  // 그리기
   const draw = useCallback(
     ({
       cvsSize,
       env,
       dots,
       ctx,
-      offscreenCtx,
-      offscreenCvs,
     }: {
       cvsSize: [number, number];
       env: ENV;
       dots: Array<Dot>;
       ctx: CanvasRenderingContext2D;
-      offscreenCtx: CanvasRenderingContext2D;
-      offscreenCvs: HTMLCanvasElement;
     }) => {
       const { NEAR_DOT_COLOR, DOT_COLOR } = env;
       const [cvsWidth, cvsHeight] = cvsSize;
 
+      // 그리기 명령 배열
       const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
 
       for (const curDot of dots) {
         const { x, y, radius, startAngle, endAngle, active } = curDot;
 
         drawCommands.push((ctx: CanvasRenderingContext2D) => {
-          ctx.beginPath();
           ctx.fillStyle = active ? NEAR_DOT_COLOR : DOT_COLOR;
+          ctx.beginPath();
           ctx.arc(x, y, radius, startAngle, endAngle);
           ctx.closePath();
           ctx.fill();
@@ -318,15 +304,11 @@ const Dots = () => {
         ctx.clearRect(0, 0, cvsWidth, cvsHeight);
       });
 
-      // 모든 커맨드 실행
+      // 모든 그리기 명령 실행
       for (let i = 0; i < drawCommands.length; i++) {
         const command = drawCommands[i];
-        command(offscreenCtx);
+        command(ctx);
       }
-
-      // 더블 버퍼링
-      ctx.clearRect(0, 0, ...cvsSize);
-      ctx.drawImage(offscreenCvs!, 0, 0);
     },
     []
   );
@@ -339,8 +321,6 @@ const Dots = () => {
       areas,
       env,
       ctx,
-      offscreenCtx,
-      offscreenCvs,
     }: {
       mousePos: [number, number];
       cvsSize: [number, number];
@@ -348,24 +328,20 @@ const Dots = () => {
       env: ENV;
       areas: Array<Area>;
       ctx: CanvasRenderingContext2D;
-      offscreenCtx: CanvasRenderingContext2D;
-      offscreenCvs: HTMLCanvasElement;
     }) => {
       const [mouseX, mouseY] = mousePos;
       const [cvsWidth, cvsHeight] = cvsSize;
       const { LINE_COLOR } = env;
 
+      // 그리기 명령 배열
       const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
 
       // 디버그용 영역 구분선
-      drawCommands.push((ctx: CanvasRenderingContext2D) => {
-        ctx.fillStyle = "lightgray";
-      });
-
       for (const area of areas) {
         const { startX, startY, width, height } = area;
 
         drawCommands.push((ctx: CanvasRenderingContext2D) => {
+          ctx.strokeStyle = "lightgray";
           ctx.beginPath();
           ctx.rect(startX, startY, width, height);
           ctx.closePath();
@@ -373,16 +349,7 @@ const Dots = () => {
         });
       }
 
-      drawCommands.push((ctx: CanvasRenderingContext2D) => {
-        ctx.stroke();
-      });
-
       // 디버그용 점 & 선
-      drawCommands.push((ctx: CanvasRenderingContext2D) => {
-        ctx.strokeStyle = LINE_COLOR;
-        ctx.lineWidth = 2;
-      });
-
       for (const curDot of dots) {
         const { x, y, originX, originY, radius, startAngle, endAngle, active } =
           curDot;
@@ -395,6 +362,8 @@ const Dots = () => {
             ctx.closePath();
             ctx.fill();
 
+            ctx.strokeStyle = LINE_COLOR;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.lineTo(mouseX, mouseY);
@@ -410,6 +379,8 @@ const Dots = () => {
             ctx.closePath();
             ctx.fill();
 
+            ctx.strokeStyle = LINE_COLOR;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.lineTo(originX, originY);
@@ -423,15 +394,11 @@ const Dots = () => {
         ctx.clearRect(0, 0, cvsWidth, cvsHeight);
       });
 
-      // 모든 커맨드 실행
+      // 모든 그리기 명령 실행
       for (let i = 0; i < drawCommands.length; i++) {
         const command = drawCommands[i];
-        command(offscreenCtx);
+        command(ctx);
       }
-
-      // 더블 버퍼링
-      ctx.clearRect(0, 0, ...cvsSize);
-      ctx.drawImage(offscreenCvs!, 0, 0);
     },
     []
   );
@@ -451,16 +418,12 @@ const Dots = () => {
             env: ENV,
             dots,
             ctx: ctx as CanvasRenderingContext2D,
-            offscreenCtx: offscreenCtx as CanvasRenderingContext2D,
-            offscreenCvs: offscreenCvs as HTMLCanvasElement,
           })
         : draw({
             cvsSize,
             env: ENV,
             dots,
             ctx: ctx as CanvasRenderingContext2D,
-            offscreenCtx: offscreenCtx as CanvasRenderingContext2D,
-            offscreenCvs: offscreenCvs as HTMLCanvasElement,
           });
 
       updateAndDraw();
@@ -475,8 +438,6 @@ const Dots = () => {
     areas,
     dots,
     ctx,
-    offscreenCtx,
-    offscreenCvs,
     draw,
   ]);
 

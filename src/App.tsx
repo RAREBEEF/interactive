@@ -12,14 +12,14 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <header className="app__header">
-          <NavLink
+          {/* <NavLink
             to="/"
             className={({ isActive }) =>
               isActive ? "nav--active app__header__title" : "app__header__title"
             }
           >
             <h1>INTERACTIVE</h1>
-          </NavLink>
+          </NavLink> */}
           <nav className="app__header__nav">
             <ul>
               <li>

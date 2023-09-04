@@ -13,47 +13,28 @@ import styles from "./HuggyWuggy.module.scss";
 import _ from "lodash";
 import generateId from "../tools/generateId";
 import dotSort from "../tools/dotSort";
-import useShape from "../hooks/useShape";
+import classNames from "classnames";
 
-// FIXME: 손이 다리를 뚫음. 순서 잘 맞추기
-// TODO: draw 부분 코드가 너무 지저분함. 정리 좀 하기
-// TODO: 바디와 너무 가까운 점은 순위에서 제거
-// FIXME: 머리 svg 사이즈 기준을 height로 변경하기
-
-const faceSvg = `
-<svg id="_레이어_1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <style>.cls-1{fill:#fff;}.cls-2{fill:#c80028;}.cls-3{fill:#0d52af;}.cls-4{fill:none;stroke:#3a000e;stroke-linecap:round;stroke-miterlimit:10;stroke-width:3.53px;}</style>
-  </defs>
-  <path class="cls-3" d="m294.06,112.88c-6.18,1.73-13.9-3.39-20.2-2.25s-12.06,4.95-18.45,5.48-12.71-.16-19.12-.25c-6.02-.09-11.75-2.05-17.41-2.25-6.03-.21-11.77-.82-17.41-1.14-6.04-.34-11.96,1.55-17.57,1.11-6.06-.48-11.8-1.35-17.38-1.91-6.08-.61-12.18,1.58-17.71.93-6.11-.72-11.24-6.51-16.72-7.23-6.16-.82-12.99,6.26-18.41,5.52-6.25-.85-11.53-5.15-16.88-5.77-6.4-.74-12.05-4.34-17.29-4.54-6.62-.26-12.66,1.86-17.72,2.87-8.46,1.69-15.78,4.41-20.13,8.27-9.03,8.02-10.26,8.59-12.05,19.02-.98,5.06,1.2,11.41,1.4,17.9.16,5.38.15,11.32,1.06,17.5.8,5.46.27,11.63,1.61,17.6,1.23,5.46,6.92,10.06,8.58,15.86,1.55,5.44.13,11.98,2.03,17.65s8.21,9.28,10.31,14.83-.75,12.73,1.53,18.17,9.27,8.57,11.72,13.91,1.04,12.36,3.66,17.59,8.49,8.68,11.28,13.8.96,12.87,3.91,17.88,8.99,8.24,12.12,13.12c3.17,4.95,4.92,10.82,8.23,15.54s9.94,7.21,13.45,11.76,4.11,11.8,7.85,16.12,7.69,8.86,12.3,12.78c4.29,3.64,9.26,7.16,14.27,10.47,4.73,3.13,8.96,8.03,14.23,10.81s11.52,3.21,16.98,5.51c5.29,2.22,10.31,6.05,15.92,7.89s11.4,3.26,17.11,4.66,11.66,2.11,17.44,3.06,11.63,2.84,17.45,3.34,11.95.74,17.77.76,11.52-3.74,17.08-4.33,10.77-4.32,16.26-5.52,12.43,2.06,17.77.25,11.65-2.51,16.79-4.89,8.47-8.8,13.36-11.69,9.85-5.74,14.46-9.08,10.08-5.72,14.4-9.44,6.56-9.67,10.58-13.72,7.41-8.5,11.13-12.82c3.69-4.29,5.65-9.83,9.09-14.38s5.85-9.5,9.01-14.24c3.14-4.72,9.73-7.18,12.62-12.07s1.59-12,4.22-17.03,9.67-7.83,12.04-12.97,4.52-10.49,6.64-15.73,2.24-11.33,4.1-16.64c1.9-5.42,3.3-10.86,4.9-16.24s6.87-10,8.2-15.44-1.99-12.16-.95-17.63,2.29-11.14,3-16.63c.75-5.81,7.31-10.95,7.65-16.44.36-5.9-2.03-11.85-2.16-17.29-.14-5.99-1.33-11.72-2.07-17.03-.85-6.04-6.84-10.16-8.46-15.16s3.56-13.69.5-18.55c-2.74-4.35-7.43-9.79-12.87-13.02-4.11-2.44-11.85,2.07-18.27.69-4.77-1.02-9.53-6.03-15.88-6.29-5.02-.21-10.79-1.96-16.96-1.61-5.13.29-10.73,1.92-16.74,2.64-5.18.62-10.68,2.05-16.56,3.03-5.2.86-11.21-.52-17,.63-5.22,1.04-9.45,8.03-15.17,9.32-5.22,1.18-11.68-1.88-17.33-.48-5.22,1.29-10.94,1.65-16.55,3.14-5.22,1.39-8.99,8.8-14.55,10.36Z"/>
-  <path class="cls-2" d="m420.05,223.31c23.94,4.61,31.18,107.78-103.53,141.51-116.33,29.12-187.28-63.62-158.2-96.16,32.86-36.76,70.4,39.13,144.51,29.72,74.12-9.42,68.97-84.36,117.22-75.06Z"/>
-  <path class="cls-4" d="m183.86,290.76c4.56,4.55,54.35,52.52,125.71,39.97,66.46-11.68,97.15-66.27,100.85-73.13"/>
-  <ellipse class="cls-1" cx="341.72" cy="225.15" rx="29" ry="28.03" transform="translate(-49.29 104.41) rotate(-16.22)"/>
-  <ellipse cx="340.96" cy="226.46" rx="22.8" ry="22.49"/>
-  <ellipse class="cls-1" cx="245.93" cy="240.37" rx="29.89" ry="29.02" transform="translate(-57.35 78.26) rotate(-16.22)"/>
-  <ellipse cx="245.25" cy="240.13" rx="22.8" ry="22.49"/>
-</svg>
-`;
-
-interface ENV {
+export interface ENV {
   AREA_DIVIDE: number;
   AREA_GAP: number;
   BODY_COLOR: string;
+  FEET_COLOR: string;
   LINE_COLOR: string;
   DOT_COLOR: string;
   BODY_WIDTH: number;
   BODY_HEIGHT: number;
   LIMBS_WIDTH: number;
-  FACE: string;
 }
 
-type Dots = {
+export type Dots = {
   [key in string]: Dot;
 };
 
 interface Dot {
   x: number;
   y: number;
+  image: HTMLImageElement;
 }
 
 interface DotDistance {
@@ -61,8 +42,8 @@ interface DotDistance {
   distance: number;
 }
 
-type Feet = [Dot, Dot, Dot, Dot] | null;
-type NearDots = [string, string, string, string] | null;
+export type Feet = [Dot, Dot, Dot, Dot] | null;
+export type NearDots = [string, string, string, string] | null;
 
 interface Area {
   startX: number;
@@ -74,36 +55,42 @@ interface Area {
 }
 
 const HuggyWuggy = () => {
+  const [isDebug, setIsDebug] = useState<boolean>(false);
   const cvsRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLElement>(null);
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [cvs, setCvs] = useState<HTMLCanvasElement | null>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
+  const [offscreenCvs, setOffscreenCvs] = useState<HTMLCanvasElement | null>(
+    null
+  );
+  const [offscreenCtx, setOffscreenCtx] =
+    useState<CanvasRenderingContext2D | null>(null);
   const [dots, setDots] = useState<Dots>({});
   const [nearDots, setNearDots] = useState<NearDots>(null);
   const [areas, setAreas] = useState<Array<Area>>([]);
+  const [quadrants, setQuadrants] = useState<Array<Array<DotDistance>>>([]);
   const [feet, setFeet] = useState<[Dot, Dot, Dot, Dot] | null>(null);
   const [cvsSize, setCvsSize] = useState<[number, number]>([0, 0]);
   const [mousePos, setMousePos] = useState<[number, number]>([0, 0]);
-  const shape = useShape(ctx);
   const isReady = useMemo(
-    () => !!cvs && !!ctx && !!container,
-    [cvs, ctx, container]
+    () => !!cvs && !!ctx && !!container && !!offscreenCvs && !!offscreenCtx,
+    [cvs, ctx, container, offscreenCvs, offscreenCtx]
   );
 
   const ENV = useMemo(() => {
     const areaDivide = 10;
-    const bodyWidth = cvsSize[0] / areaDivide / 3;
+    const bodyWidth = cvsSize[0] / areaDivide / 4;
 
     return {
       AREA_DIVIDE: areaDivide,
       AREA_GAP: 20,
       BODY_COLOR: "#0d52af",
-      LINE_COLOR: "green",
+      FEET_COLOR: "yellow",
+      LINE_COLOR: "lightgray",
       DOT_COLOR: "black",
-      FACE: faceSvg,
       BODY_WIDTH: bodyWidth,
-      BODY_HEIGHT: bodyWidth * 2,
+      BODY_HEIGHT: bodyWidth * 2.3,
       LIMBS_WIDTH: bodyWidth * 0.8,
     };
   }, [cvsSize]);
@@ -116,6 +103,10 @@ const HuggyWuggy = () => {
     setContainer(containerRef.current);
     setCvs(cvsRef.current);
     setCtx(cvsRef.current.getContext("2d"));
+    const offscreenCanvas = document.createElement("canvas");
+    const offscreenContext = offscreenCanvas.getContext("2d");
+    setOffscreenCvs(offscreenCanvas);
+    setOffscreenCtx(offscreenContext);
     document.body.style.cursor = "none";
 
     return () => {
@@ -133,6 +124,8 @@ const HuggyWuggy = () => {
       // 캔버스 사이즈 지정
       cvs!.width = cvsWidth;
       cvs!.height = cvsHeight;
+      offscreenCvs!.width = cvsWidth;
+      offscreenCvs!.height = cvsHeight;
 
       // 영역 구분
       const areas: Array<Area> = [];
@@ -165,15 +158,13 @@ const HuggyWuggy = () => {
         const { startX, endX, startY, endY } = area;
         const x = Math.floor(Math.random() * (endX - startX) + startX);
         const y = Math.floor(Math.random() * (endY - startY) + startY);
-
+        const image = new Image();
+        const holdNum = Math.floor(Math.random() * 4) + 1;
+        image.src = `/images/hold${holdNum}.png`;
         const dot = {
           x,
           y,
-          radius: 5,
-          startAngle: 0,
-          endAngle: Math.PI * 2,
-          color: ENV.DOT_COLOR,
-          active: false,
+          image,
         };
 
         dots[generateId()] = dot;
@@ -192,6 +183,7 @@ const HuggyWuggy = () => {
           for (const entry of entries) {
             const { inlineSize: width, blockSize: height } =
               entry.borderBoxSize[0];
+
             setCvsSize([width, height]);
             createDots(width, height);
           }
@@ -225,8 +217,8 @@ const HuggyWuggy = () => {
     e.stopPropagation();
 
     const mousePos: [number, number] = [
-      e.touches[0].clientX,
-      e.touches[0].clientY,
+      e.touches[0].pageX,
+      e.touches[0].pageY - e.currentTarget.offsetTop,
     ];
 
     setMousePos(mousePos);
@@ -293,6 +285,13 @@ const HuggyWuggy = () => {
         sortedQuadrant3 = sortFx(quadrant3),
         sortedQuadrant4 = sortFx(quadrant4);
 
+      setQuadrants([
+        sortedQuadrant1,
+        sortedQuadrant2,
+        sortedQuadrant3,
+        sortedQuadrant4,
+      ]);
+
       const nearDot1 = sortedQuadrant1[0]?.id || sortedQuadrant3[1]?.id,
         nearDot2 = sortedQuadrant2[0]?.id || sortedQuadrant4[1]?.id,
         nearDot3 = sortedQuadrant3[0]?.id || sortedQuadrant1[1]?.id,
@@ -338,7 +337,10 @@ const HuggyWuggy = () => {
           const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
           // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-          const SPEED = Math.round(distance / 5);
+
+          const dampingFactor = 0.8; // 감쇠 계수
+          const curSpeed = distance / 5; // 남은 거리에 기반하여 속도 계산
+          const SPEED = curSpeed < 0.01 ? 0 : curSpeed * dampingFactor; // 감쇠 계수를 적용한 속도
 
           // 현재 속도가 0보다 클 경우
           // 속력을 계산해 위치를 업데이트한다.
@@ -375,298 +377,482 @@ const HuggyWuggy = () => {
     ({
       mousePos,
       cvsSize,
-      Shape,
       feet,
       dots,
-      nearDots,
       env,
+      offscreenCtx,
+      offscreenCvs,
+      ctx,
     }: {
       mousePos: [number, number];
       cvsSize: [number, number];
-      Shape: typeof shape;
       feet: Feet;
       dots: Dots;
-      nearDots: NearDots;
       env: ENV;
+      ctx: CanvasRenderingContext2D;
+      offscreenCtx: CanvasRenderingContext2D;
+      offscreenCvs: HTMLCanvasElement;
     }) => {
-      const {
-        LINE_COLOR,
-        LIMBS_WIDTH,
-        BODY_COLOR,
-        BODY_HEIGHT,
-        BODY_WIDTH,
-        FACE,
-      } = env;
+      const { LIMBS_WIDTH, BODY_COLOR, FEET_COLOR, BODY_HEIGHT, BODY_WIDTH } =
+        env;
       const [mouseX, mouseY] = mousePos;
       const [cvsWidth, cvsHeight] = cvsSize;
 
-      // draw를 순차적으로 실행할 덱
-      // Shape 객체를 담는다.
-      const drawDeque: Array<InstanceType<typeof Shape>> = [];
+      const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
 
-      // 디버그용 사분면 구분선
-      // const debugLineX = new Shape({
-      //   line: {
-      //     moveTo: { x: 0, y: mouseY },
-      //     lineTo: { x: cvsWidth, y: mouseY },
-      //   },
-      //   strokeStyle: LINE_COLOR,
-      //   lineWidth: 3,
-      // });
-
-      // const debugLineY = new Shape({
-      //   line: {
-      //     moveTo: { x: mouseX, y: 0 },
-      //     lineTo: { x: mouseX, y: cvsHeight },
-      //   },
-      //   strokeStyle: LINE_COLOR,
-      //   lineWidth: 3,
-      // });
-
-      // drawDeque.push(debugLineX, debugLineY);
-
-      // 디버그용 Dot 렌더
-      // for (const [id, dot] of Object.entries(dots)) {
-      //   const { x, y } = dot;
-      //   const nearDotIndex = nearDots?.indexOf(id);
-      //   const active = nearDotIndex !== -1;
-      //   const radius = active ? 15 : 5;
-      //   const fillStyle = active
-      //     ? nearDotIndex === 0
-      //       ? "red"
-      //       : nearDotIndex === 1
-      //       ? "orange"
-      //       : nearDotIndex === 2
-      //       ? "yellow"
-      //       : "green"
-      //     : "darkgray";
-
-      //   const debugDot = new Shape({
-      //     arc: {
-      //       x,
-      //       y,
-      //       radius,
-      //       startAngle: 0,
-      //       endAngle: Math.PI * 2,
-      //     },
-      //     fillStyle,
-      //   });
-
-      //   drawDeque.push(debugDot);
-      // }
-
+      // 팔다리 몸통 그리기
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.fillStyle = BODY_COLOR;
+        ctx.lineWidth = LIMBS_WIDTH;
+        ctx.strokeStyle = BODY_COLOR;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+      });
       // 팔다리
       if (!!feet) {
         for (let i = 0; i < feet.length; i++) {
           const { x, y } = feet[i];
           let jointX = mouseX;
           let jointY = mouseY;
-          let controlX = (x + jointX) / 2 + 10;
+          let controlX = (x + jointX) / 2;
           let controlY = (y + jointY) / 2;
 
           // 오른팔
           if (i === 0) {
-            // 팔
             jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
             jointY -= BODY_HEIGHT / 2;
             controlY += 20;
-
-            // 손
-            const palm = new Shape({
-              ellipse: {
-                x,
-                y: y - LIMBS_WIDTH / 4,
-                radiusX: LIMBS_WIDTH * 0.5,
-                radiusY: LIMBS_WIDTH * 0.8,
-                rotation: (Math.PI / 180) * 20,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-              },
-              fillStyle: "yellow",
-            });
-            const thumb = new Shape({
-              ellipse: {
-                x: x - LIMBS_WIDTH / 2,
-                y: y - LIMBS_WIDTH / 4,
-                radiusX: LIMBS_WIDTH * 0.4,
-                radiusY: LIMBS_WIDTH * 0.2,
-                rotation: (Math.PI / 180) * 45,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-              },
-              fillStyle: "yellow",
-            });
-
-            drawDeque.unshift(palm, thumb);
-
             // 왼팔
           } else if (i === 1) {
-            // 팔
             jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
             jointY -= BODY_HEIGHT / 2;
             controlY += 20;
-
-            // 손
-            const palm = new Shape({
-              ellipse: {
-                x,
-                y: y - LIMBS_WIDTH / 4,
-                radiusX: LIMBS_WIDTH * 0.5,
-                radiusY: LIMBS_WIDTH * 0.8,
-                rotation: (Math.PI / 180) * 340,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-              },
-              fillStyle: "yellow",
-            });
-            const thumb = new Shape({
-              ellipse: {
-                x: x + LIMBS_WIDTH / 2,
-                y: y - LIMBS_WIDTH / 4,
-                radiusX: LIMBS_WIDTH * 0.4,
-                radiusY: LIMBS_WIDTH * 0.2,
-                rotation: (Math.PI / 180) * 135,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-              },
-              fillStyle: "yellow",
-            });
-
-            drawDeque.unshift(palm, thumb);
-
-            // 다리
-          } else {
             // 왼다리
-            if (i === 2) {
-              jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
-              jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
-              controlY -= 20;
-              // 오른 다리
-            } else {
-              jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
-              jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
-              controlY -= 20;
-            }
-
-            // 발
-            const foot = new Shape({
-              ellipse: {
-                x,
-                y: y - LIMBS_WIDTH / 5,
-                radiusX: LIMBS_WIDTH * 0.6,
-                radiusY: LIMBS_WIDTH * 0.8,
-                rotation: 0,
-                startAngle: 0,
-                endAngle: Math.PI * 2,
-              },
-              fillStyle: "yellow",
-            });
-
-            drawDeque.unshift(foot);
+          } else if (i === 2) {
+            jointX -= BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
+            jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
+            controlY -= 20;
+            // 오른 다리
+          } else {
+            jointX += BODY_WIDTH / 2 - LIMBS_WIDTH / 2;
+            jointY += BODY_HEIGHT / 2 - LIMBS_WIDTH / 2;
+            controlY -= 20;
           }
 
-          const limb = new Shape({
-            quadraticCurve: {
-              moveTo: { x, y },
-              quadraticCurveTo: {
-                cpx: controlX,
-                cpy: controlY,
-                x: jointX,
-                y: jointY,
-              },
-            },
-            strokeStyle: BODY_COLOR,
-            lineWidth: LIMBS_WIDTH,
+          drawCommands.push((ctx: CanvasRenderingContext2D) => {
+            ctx.moveTo(x, y);
+            ctx.quadraticCurveTo(controlX, controlY, jointX, jointY);
           });
+        }
 
-          drawDeque.push(limb);
+        drawCommands.push((ctx: CanvasRenderingContext2D) => {
+          ctx.stroke();
+        });
+      }
+
+      // 몸통
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.beginPath();
+        ctx.rect(
+          mouseX - BODY_WIDTH / 2,
+          mouseY - BODY_HEIGHT / 2,
+          BODY_WIDTH,
+          BODY_HEIGHT - BODY_HEIGHT / 5
+        );
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // 어깨
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.beginPath();
+        ctx.arc(
+          mouseX,
+          mouseY - BODY_HEIGHT / 2,
+          BODY_WIDTH / 2,
+          Math.PI,
+          Math.PI * 2
+        );
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // 엉덩이
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.beginPath();
+        ctx.arc(
+          mouseX,
+          mouseY + BODY_HEIGHT / 2 - BODY_HEIGHT / 5,
+          BODY_WIDTH / 2,
+          Math.PI * 2,
+          Math.PI * 3
+        );
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // 손발 그리기
+      if (!!feet) {
+        for (let i = 0; i < feet?.length; i++) {
+          const { x, y } = feet[i];
+
+          // 오른손
+          if (i === 0) {
+            drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.beginPath();
+              ctx.ellipse(
+                x,
+                y - LIMBS_WIDTH / 4,
+                LIMBS_WIDTH * 0.5,
+                LIMBS_WIDTH * 0.8,
+                (Math.PI / 180) * 20,
+                0,
+                Math.PI * 2
+              );
+              ctx.ellipse(
+                x - LIMBS_WIDTH / 2,
+                y - LIMBS_WIDTH / 4,
+                LIMBS_WIDTH * 0.4,
+                LIMBS_WIDTH * 0.2,
+                (Math.PI / 180) * 45,
+                0,
+                Math.PI * 2
+              );
+              ctx.closePath();
+              ctx.fill();
+            });
+            // 왼손
+          } else if (i === 1) {
+            drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.beginPath();
+              ctx.ellipse(
+                x,
+                y - LIMBS_WIDTH / 4,
+                LIMBS_WIDTH * 0.5,
+                LIMBS_WIDTH * 0.8,
+                (Math.PI / 180) * 340,
+                0,
+                Math.PI * 2
+              );
+              ctx.ellipse(
+                x + LIMBS_WIDTH / 2,
+                y - LIMBS_WIDTH / 4,
+                LIMBS_WIDTH * 0.4,
+                LIMBS_WIDTH * 0.2,
+                (Math.PI / 180) * 135,
+                0,
+                Math.PI * 2
+              );
+              ctx.closePath();
+              ctx.fill();
+            });
+            // 발
+          } else {
+            drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+              ctx.beginPath();
+              ctx.ellipse(
+                x,
+                y - LIMBS_WIDTH / 5,
+                LIMBS_WIDTH * 0.6,
+                LIMBS_WIDTH * 0.8,
+                0,
+                0,
+                Math.PI * 2
+              );
+              ctx.closePath();
+              ctx.fill();
+            });
+          }
+        }
+
+        drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+          ctx.fillStyle = FEET_COLOR;
+        });
+      }
+
+      // 머리
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        const img = new Image();
+        img.src = `/images/huggy_wuggy.svg`;
+
+        ctx.drawImage(
+          img,
+          mouseX - BODY_WIDTH * 1.5,
+          mouseY - BODY_HEIGHT * 1.5,
+          BODY_WIDTH * 3,
+          BODY_WIDTH * 3
+        );
+      });
+
+      // 플래시라이트
+      // 실제 빛을 비추는 느낌을 주기 위해 비추는 위치 따라 사이즈와 각도를 변경
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        const vmax = Math.max(...cvsSize);
+        const img = new Image();
+        img.src = `/images/flashlight.svg`;
+
+        // 중앙과 마우스x 사이 거리
+        const deltaFromCenterX = cvsWidth / 2 - mouseX;
+        // 바닥과 마우스y 사이 거리
+        const deltaFromBottomY = cvsHeight - mouseY;
+        // // deltaFromBottomY 정규화
+        const normalizedDeltaY = deltaFromBottomY / cvsHeight;
+
+        // 플래시라이트 이미지 너비
+        const width = vmax * 5;
+        // 플래시라이트 이미지 높이, normalizedDeltaY에 따라 가변.
+        const height = vmax * 5 + vmax * normalizedDeltaY * 5;
+        // 각도 계산, deltaFromCenterX에 따라 가변.
+        const angle =
+          -Math.atan2(mouseY - cvsHeight * 1.5, deltaFromCenterX) +
+          (-90 * Math.PI) / 180;
+
+        // 계산한 각도로 컨텍스트 회전
+        ctx.rotate(angle);
+
+        // 회전된 좌표계 내에서 마우스 위치 계산
+        const rotatedMouseX =
+          mouseX * Math.cos(angle) + mouseY * Math.sin(angle);
+        const rotatedMouseY =
+          -mouseX * Math.sin(angle) + mouseY * Math.cos(angle);
+
+        ctx.drawImage(
+          img,
+          rotatedMouseX - width / 2,
+          rotatedMouseY - height / 2,
+          width,
+          height
+        );
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      });
+
+      // 클라이밍 홀드
+      for (const [id, { x, y, image }] of Object.entries(dots)) {
+        drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+          ctx.drawImage(
+            image,
+            x - (BODY_WIDTH * 1.5) / 2,
+            y - BODY_WIDTH,
+            BODY_WIDTH * 1.5,
+            BODY_WIDTH * 1.5
+          );
+        });
+      }
+
+      // 캔버스 전체 지우기 및 설정
+      drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+        ctx.clearRect(0, 0, cvsWidth, cvsHeight);
+      });
+
+      // 모든 커맨드 실행
+      for (let i = 0; i < drawCommands.length; i++) {
+        const command = drawCommands[i];
+        command(offscreenCtx);
+      }
+
+      // 더블 버퍼링
+      ctx.clearRect(0, 0, ...cvsSize);
+      ctx.drawImage(offscreenCvs!, 0, 0);
+    },
+    []
+  );
+
+  const debug = useCallback(
+    ({
+      dots,
+      quadrants,
+      mousePos,
+      cvsSize,
+      env,
+      ctx,
+      offscreenCtx,
+      offscreenCvs,
+      feet,
+    }: {
+      dots: Dots;
+      quadrants: Array<Array<DotDistance>>;
+      mousePos: [number, number];
+      cvsSize: [number, number];
+      env: ENV;
+      ctx: CanvasRenderingContext2D;
+      offscreenCtx: CanvasRenderingContext2D;
+      offscreenCvs: HTMLCanvasElement;
+      feet: Feet;
+    }) => {
+      const [mouseX, mouseY] = mousePos;
+      const [cvsWidth, cvsHeight] = cvsSize;
+      const { LINE_COLOR } = env;
+      const drawCommands: Array<(ctx: CanvasRenderingContext2D) => void> = [];
+
+      // 디버그용 dot
+      for (let i = 0; i < quadrants.length; i++) {
+        const quadrantDots = quadrants[i];
+
+        for (let j = 0; j < quadrantDots.length; j++) {
+          const { id } = quadrantDots[j];
+
+          if (!dots[id]) continue;
+
+          const { x, y } = dots[id];
+
+          drawCommands.push((ctx: CanvasRenderingContext2D) => {
+            ctx.fillStyle =
+              i === 0
+                ? "pink"
+                : i === 1
+                ? "yellow"
+                : i === 2
+                ? "skyblue"
+                : "lightgreen";
+            ctx.beginPath();
+            ctx.arc(x, y, 10, Math.PI * 2, 0);
+            ctx.fill();
+            ctx.closePath();
+
+            ctx.fillStyle = "black";
+            ctx.fillText((j + 1).toString(), x - 8, y + 4);
+          });
         }
       }
 
-      // 바디
-      const body = new Shape({
-        fillRect: {
-          x: mouseX - BODY_WIDTH / 2,
-          y: mouseY - BODY_HEIGHT / 2,
-          width: BODY_WIDTH,
-          height: BODY_HEIGHT - BODY_HEIGHT / 5,
-        },
-        fillStyle: BODY_COLOR,
-      });
-      const shoulder = new Shape({
-        arc: {
-          x: mouseX,
-          y: mouseY - BODY_HEIGHT / 2,
-          radius: BODY_WIDTH / 2,
-          startAngle: Math.PI,
-          endAngle: Math.PI * 2,
-        },
-        fillStyle: BODY_COLOR,
-      });
-      const ass = new Shape({
-        arc: {
-          x: mouseX,
-          y: mouseY + BODY_HEIGHT / 2 - BODY_HEIGHT / 5,
-          radius: BODY_WIDTH / 2,
-          startAngle: Math.PI * 2,
-          endAngle: Math.PI * 3,
-        },
-        fillStyle: BODY_COLOR,
-      });
+      // 디버그용 팔다리 표시
+      if (!!feet) {
+        drawCommands.push((ctx: CanvasRenderingContext2D) => {
+          ctx.strokeStyle = "blue";
+          ctx.beginPath();
+        });
+        
+        for (let i = 0; i < feet.length; i++) {
+          const { x, y } = feet[i];
 
-      // 머리
-      const img = new Image();
-      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(FACE);
-      const head = new Shape({
-        drawImage: {
-          image: img,
-          x: mouseX - BODY_WIDTH * 1.5,
-          y: mouseY - BODY_HEIGHT * 1.5,
-          width: BODY_WIDTH * 3,
-          height: BODY_WIDTH * 3,
-        },
-      });
+          drawCommands.push((ctx: CanvasRenderingContext2D) => {
+            ctx.moveTo(x, y);
+            ctx.lineTo(mouseX, mouseY);
+          });
+        }
 
-      // spotlight
-      const spotlight = new Shape({
-        radialGradient: {
-          x0: mouseX,
-          y0: mouseY,
-          r0: 0,
-          x1: mouseX,
-          y1: mouseY,
-          r1: Math.max(...cvsSize) * 1.5,
-        },
-        colorStops: [
-          [0.01, "rgba(200, 255, 255, 0)"],
-          [0.03, "rgba(49, 63, 62, 0)"],
-          [0.06, "rgba(33, 33, 33, 0.5)"],
-          [0.08, "rgba(33, 33, 33, 0.8)"],
-          [0.1, "rgba(33, 33, 33, 0.9)"],
-          [0.15, "rgba(33, 33, 33, 1)"],
-        ],
-        arc: {
-          x: mouseX,
-          y: mouseY,
-          radius: Math.max(...cvsSize) * 2,
-          startAngle: Math.PI * 2,
-          endAngle: 0,
-        },
-      });
-
-      drawDeque.push(body, shoulder, ass, head, spotlight);
-
-      const clear = new Shape({
-        clearRect: { x: 0, y: 0, width: cvsWidth, height: cvsHeight },
-      });
-
-      drawDeque.unshift(clear);
-
-      // 덱 실행
-      while (drawDeque.length > 0) {
-        const shape = drawDeque.shift();
-        shape?.draw();
+        drawCommands.push((ctx: CanvasRenderingContext2D) => {
+          ctx.stroke();
+        });
       }
+
+      // 디버그용 사분면 구분선
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        ctx.strokeStyle = LINE_COLOR;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, mouseY);
+        ctx.lineTo(cvsWidth, mouseY);
+        ctx.moveTo(mouseX, 0);
+        ctx.lineTo(mouseX, cvsHeight);
+        ctx.stroke();
+      });
+
+      // 디버그용 플래시라이트
+      drawCommands.push((ctx: CanvasRenderingContext2D) => {
+        // 컨텍스트 회전하기 전에 각도 표시
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(cvsWidth / 2, mouseY);
+        ctx.lineTo(cvsWidth / 2, cvsHeight);
+        ctx.moveTo(mouseX, mouseY);
+        ctx.lineTo(cvsWidth / 2, mouseY);
+        ctx.moveTo(mouseX, mouseY);
+        ctx.lineTo(cvsWidth / 2, cvsHeight * 1.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = "red";
+
+        const vmax = Math.max(...cvsSize);
+        const img = new Image();
+        img.src = `/images/flashlight.svg`;
+
+        // 중앙과 마우스x 사이 거리
+        const deltaFromCenterX = cvsWidth / 2 - mouseX;
+        // 바닥과 마우스y 사이 거리
+        const deltaFromBottomY = cvsHeight - mouseY;
+        // // deltaFromBottomY 정규화
+        const normalizedDeltaY = deltaFromBottomY / cvsHeight;
+
+        // 플래시라이트 이미지 너비
+        const radiusX = vmax * 0.15;
+        // 플래시라이트 이미지 높이, normalizedDeltaY에 따라 가변.
+        const radiusY = vmax * 0.15 + vmax * normalizedDeltaY * 0.15;
+        // 각도 계산, deltaFromCenterX에 따라 가변.
+        const angle =
+          -Math.atan2(mouseY - cvsHeight * 1.5, deltaFromCenterX) +
+          (-90 * Math.PI) / 180;
+
+        // 계산한 각도로 컨텍스트 회전
+        ctx.rotate(angle);
+
+        // 회전된 좌표계 내에서 마우스 위치 계산
+        const rotatedMouseX =
+          mouseX * Math.cos(angle) + mouseY * Math.sin(angle);
+        const rotatedMouseY =
+          -mouseX * Math.sin(angle) + mouseY * Math.cos(angle);
+
+        // 플래시라이트 영역 표시
+        ctx.beginPath();
+        ctx.ellipse(
+          rotatedMouseX,
+          rotatedMouseY,
+          radiusX,
+          radiusY,
+          0,
+          Math.PI * 2,
+          0
+        );
+        ctx.closePath();
+        ctx.stroke();
+
+        // x 지름 선 표시
+        ctx.beginPath();
+        ctx.moveTo(rotatedMouseX - radiusX, rotatedMouseY);
+        ctx.lineTo(rotatedMouseX + radiusX, rotatedMouseY);
+        // y 지름 선 표시
+        ctx.moveTo(rotatedMouseX, rotatedMouseY - radiusY);
+        ctx.lineTo(rotatedMouseX, rotatedMouseY);
+        ctx.stroke();
+
+        // 텍스트 표시
+        ctx.fillStyle = "black";
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(
+          angle.toFixed(5) + " rad ",
+          rotatedMouseX + 5,
+          rotatedMouseY - 5
+        );
+        ctx.fillStyle = "red";
+        ctx.fillText(
+          "radiusX : " + radiusX.toFixed(2),
+          rotatedMouseX - radiusX - 65,
+          rotatedMouseY - 5
+        );
+        ctx.fillText(
+          "radiusY : " + radiusY.toFixed(2),
+          rotatedMouseX - 65,
+          rotatedMouseY - radiusY - 5
+        );
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      });
+
+      // 캔버스 전체 지우기 및 설정
+      drawCommands.unshift((ctx: CanvasRenderingContext2D) => {
+        ctx.clearRect(0, 0, cvsWidth, cvsHeight);
+      });
+
+      // 모든 커맨드 실행
+      for (let i = 0; i < drawCommands.length; i++) {
+        const command = drawCommands[i];
+        command(offscreenCtx);
+      }
+
+      // 더블 버퍼링
+      ctx.clearRect(0, 0, ...cvsSize);
+      ctx.drawImage(offscreenCvs!, 0, 0);
     },
     []
   );
@@ -680,19 +866,47 @@ const HuggyWuggy = () => {
         feetSetter: setFeet,
         sortFx: dotSort,
       });
-      draw({
-        mousePos,
-        cvsSize,
-        Shape: shape,
-        feet,
-        dots,
-        nearDots,
-        env: ENV,
-      });
+
+      isDebug
+        ? debug({
+            feet,
+            env: ENV,
+            mousePos,
+            cvsSize,
+            dots,
+            quadrants,
+            ctx: ctx as CanvasRenderingContext2D,
+            offscreenCtx: offscreenCtx as CanvasRenderingContext2D,
+            offscreenCvs: offscreenCvs as HTMLCanvasElement,
+          })
+        : draw({
+            mousePos,
+            cvsSize,
+            feet,
+            dots,
+            env: ENV,
+            ctx: ctx as CanvasRenderingContext2D,
+            offscreenCtx: offscreenCtx as CanvasRenderingContext2D,
+            offscreenCvs: offscreenCvs as HTMLCanvasElement,
+          });
 
       updateAndDraw();
     });
-  }, [ENV, cvsSize, dots, draw, feet, mousePos, nearDots, shape, updateFeet]);
+  }, [
+    updateFeet,
+    mousePos,
+    dots,
+    draw,
+    cvsSize,
+    feet,
+    ENV,
+    ctx,
+    offscreenCtx,
+    offscreenCvs,
+    isDebug,
+    debug,
+    quadrants,
+  ]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -705,9 +919,35 @@ const HuggyWuggy = () => {
     };
   }, [isReady, updateAndDraw]);
 
+  const onToggleDebug = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDebug((prev) => !prev);
+  };
+
   return (
     <main ref={containerRef} className={styles.container}>
+      <div className={styles["console"]}>
+        <button
+          className={classNames(
+            styles["toggle-debug"],
+            isDebug && styles["active"]
+          )}
+          onClick={onToggleDebug}
+        >
+          {isDebug ? "디버그 모드 off" : "디버그 모드 on"}
+        </button>
+        {/* {isDebug && (
+          <div className={styles["description"]}>
+            <p>색상 : 사분면 구분</p>
+            <p>숫자 : 마우스와 가까운 순서</p>
+            <p style={{ position: "absolute", left: 0, top: 0 }}>
+              렌더링한 프레임 수 : {ANIMATION_FRAME_ID.current}
+            </p>
+          </div>
+        )} */}
+      </div>
       <canvas
+        style={{ background: isDebug ? "white" : "none" }}
         className={styles.canvas}
         ref={cvsRef}
         onMouseMove={onMouseMove}

@@ -257,13 +257,13 @@ const HuggyWuggy = () => {
         quadrant3: Array<DotDistance> = [],
         quadrant4: Array<DotDistance> = [];
 
-      // 각 점의 마우스와 거리 계산 후 사분면으로 나눠서 저장
+      // 각 점과 마우스 사이 거리 계산 후 사분면으로 나눠서 저장
       for (const [id, dot] of Object.entries(dots)) {
         const { x: dotX, y: dotY } = dot;
 
-        const distanceX = mouseX - dotX;
-        const distanceY = mouseY - dotY;
-        const distance = Math.sqrt(distanceX ** 2 + distanceY ** 2);
+        const deltaX = mouseX - dotX;
+        const deltaY = mouseY - dotY;
+        const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
         const dotDistance = { id, distance };
 
         if (dotX <= mouseX) {
@@ -933,7 +933,7 @@ const HuggyWuggy = () => {
           )}
           onClick={onToggleDebug}
         >
-          {isDebug ? "디버그 모드 off" : "디버그 모드 on"}
+          {isDebug ? "디버그 모드 끄기" : "디버그 모드"}
         </button>
         {isDebug && (
           <div className={styles["description"]}>

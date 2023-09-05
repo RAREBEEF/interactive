@@ -467,7 +467,7 @@ const Dots = () => {
           )}
           onClick={onToggleDebug}
         >
-          {isDebug ? "디버그 모드 off" : "디버그 모드 on"}
+          {isDebug ? "디버그 모드 끄기" : "디버그 모드"}
         </button>
         {isDebug && (
           <div className={styles["description"]}>

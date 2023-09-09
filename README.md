@@ -558,17 +558,61 @@ setDots(dots);
 
 <br/>
 
-## **3. 손발 위치 업데이트**
+## **3. 몸통 및 손발 위치 업데이트**
 
-이번 아이디어에서는 모든 점이 움직이는 것이 아닌 4개의 점(손발)만 움직인다.
+이번 아이디어에서는 모든 점이 움직이는 것이 아닌 몸통과 4개의 점(손발)만 움직인다.
 
-각 손발은 자신이 해당하는 사분면에서 가장 마우스와 가까운 고정점의 위치로 이동하게 된다.
+몸통과 활성화된 손은 마우스의 위치를 따라다니고(일정 거리 유지하며) 활성화되지 않은 손과 발은 자신이 해당하는 사분면에서 가장 마우스와 가까운 고정점의 위치로 이동하게 된다.
 
-따라서 각 고정점의 거리와 사분면을 계산하고 그 이후에 손발의 위치를 계산해야 한다.
+따라서 각 고정점의 거리와 사분면을 계산하고 그 이후에 손발의 위치를 계산해야 한다. 이런 계산을 통해 움직임을 구현하면 캐릭터가 벽면을 타고 다니며 마우스 포인터를 손으로 가리키는 모습을 만들 수 있다.
 
-### **3-1. 거리 계산 및 사분면 구분**
+### **3-1. 몸통 위치 계산**
 
-![업로드중..](blob:https://velog.io/348eae8c-2ae8-4064-b559-f13272f3f1a3)
+몸통은 기본적으로 마우스를 따라다니지만 마우스와의 거리가 기준보다 가까울 때는 움직이지 않으며 거리가 기준보다 멀어질 경우 다시 마우스에게 다가간다.
+
+```tsx
+bodySetter((prev) => {
+  const [bodyX, bodyY] = prev;
+  let newX = bodyX;
+  let newY = bodyY;
+
+  // 마우스와 몸통 사이의 거리
+  const deltaX = mouseBodyX - bodyX;
+  const deltaY = mouseBodyY - bodyY;
+  // 몸통이 마우스의 정위치로 너무 따라다니지 않고 거리를 유지하며 움직일 수 있도록 거리에서 일정 값을 빼준다.
+  const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2) - BODY_HEIGHT * 2;
+
+  // 속도 계산
+  const dampingFactor = 0.5; // 감쇠 계수
+  const curSpeed = distance / 10; // 남은 거리에 기반하여 속도 계산
+  const SPEED = curSpeed < 0.01 ? 0 : curSpeed * dampingFactor; // 감쇠 계수를 적용한 속도
+
+  // 현재 속도가 0보다 클 경우
+  // 속력을 계산해 위치를 업데이트한다.
+  if (SPEED > 0) {
+    // 현재 몸통 위치에서 목표 위치를 바라보는 라디안 각도
+    const angle = Math.atan2(deltaY, deltaX);
+    // 속도와 각도를 통해 각 방향의 속력 구하기
+    const velocityX = SPEED * Math.cos(angle);
+    const velocityY = SPEED * Math.sin(angle);
+    // 새로운 x,y 좌표 계산
+    newX += velocityX;
+    newY += velocityY;
+    // 현재 속도가 0보다 작거나 같을 경우
+    // 움직이지 않는다.
+  } else {
+    return [bodyX, bodyY];
+  }
+
+  return [newX, newY];
+});
+```
+
+<br />
+
+### **3-2. 거리 계산 및 사분면 구분**
+
+![](https://velog.velcdn.com/images/drrobot409/post/f5a6e44d-11c0-426f-aac0-89ea7308943d/image.png)
 
 마우스의 위치를 기준으로 사분면을 나누고 각 점과 마우스 사이의 거리를 계산한다.
 
@@ -613,7 +657,7 @@ for (const [id, dot] of Object.entries(dots)) {
 
 <br/>
 
-### **3-2. 거리순 정렬**
+### **3-3. 거리순 정렬**
 
 ![](https://velog.velcdn.com/images/drrobot409/post/be0c141d-4cd0-42a6-b4d6-a8ae27670bae/image.png)
 
@@ -669,11 +713,13 @@ setNearDots(nearDots);
 
 <br />
 
-### **3-3. 손발 위치 계산**
+### **3-4. 손발 위치 계산**
 
 각 손발이 해당하는 사분면의 가장 가까운 고정 좌표로 이동하도록 위치를 업데이트한다.
 
-속력을 계산하는 등의 코드는 이전과 동일하다.
+단, 활성화된 손은 가까운 고정 좌표 대신 마우스 포인터의 위치를 쫓는다.
+
+여기서 말하는 활성화된 손은 마우스가 몸통을 기준으로 우측에 있을 경우 오른손, 왼쪽에 있을 경우 왼손이다.
 
 ```tsx
 feetSetter((prev) => {
@@ -689,19 +735,32 @@ feetSetter((prev) => {
 
   for (let i = 0; i < newFeet.length; i++) {
     const foot = newFeet[i];
-    const nearDot = nearDots[i];
-
-    if (!nearDot) continue;
-
     const { x: footX, y: footY } = foot;
-    const { x: targetX, y: targetY } = dots[nearDot];
-    let x, y: number;
+    const nearDot = nearDots[i];
+    let targetX, targetY: number | null;
 
-    const deltaX = targetX - footX; // 현재 x와 타겟 x의 거리
-    const deltaY = targetY - footY; // 현재 y와 타겟 y의 거리
-    // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
+    // 활성화된 손은 마우스 위치를 따라가고 그 외는 인접한 점으로 이동
+    const isTrackingMouse =
+      (i === 0 && bodyX <= mouseBodyX) || (i === 1 && bodyX > mouseBodyX);
+    // 몸통이 마우스의 정위치로 너무 따라다니지 않고 거리를 유지하며 움직일 수 있도록 계산한다..
+    if (isTrackingMouse) {
+      targetX = mouseX + Math.sign(bodyX - mouseX) * LIMBS_WIDTH * 1.5;
+      targetY = mouseY + Math.sign(bodyY - mouseY) * LIMBS_WIDTH * 1.5;
+    } else {
+      targetX = dots[nearDot]?.x;
+      targetY = dots[nearDot]?.y;
+    }
+
+    if (!targetX || !targetY) continue;
+
+    let newX, newY: number;
+
+    // 현재 점과 타겟 점 사이의 거리
+    const deltaX = targetX - footX;
+    const deltaY = targetY - footY;
     const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
+    // 속도 계산
     const dampingFactor = 0.8; // 감쇠 계수
     const curSpeed = distance / 5; // 남은 거리에 기반하여 속도 계산
     const SPEED = curSpeed < 0.01 ? 0 : curSpeed * dampingFactor; // 감쇠 계수를 적용한 속도
@@ -715,19 +774,20 @@ feetSetter((prev) => {
       const velocityX = SPEED * Math.cos(angle);
       const velocityY = SPEED * Math.sin(angle);
       // 새로운 x,y 좌표 계산
-      x = footX + velocityX;
-      y = footY + velocityY;
+      newX = footX + velocityX;
+      newY = footY + velocityY;
       // 현재 속도가 0보다 작거나 같을 경우
       // 타겟 위치로 바로 이동한다.
     } else {
-      x = targetX;
-      y = targetY;
+      newX = targetX;
+      newY = targetY;
     }
 
     newFeet[i] = {
       ...newFeet[i],
-      x,
-      y,
+      x: newX,
+      y: newY,
+      trackingMouse: isTrackingMouse,
     };
   }
 
@@ -742,19 +802,19 @@ feetSetter((prev) => {
 위 내용을 하나의 함수로 합친다.  
 내용이 너무 길어지기 때문에 코드 링크로 대체
 
-[코드 링크 (Github)](https://github.com/RAREBEEF/interactive/blob/master/src/pages/HuggyWuggy.tsx#L231-L376)
+[코드 링크 (Github)](https://github.com/RAREBEEF/interactive/blob/master/src/pages/HuggyWuggy.tsx#L229-L431)
 
 <br />
 
-## **3. 그리기**
+## **4. 그리기**
 
 위에서 계산한 손발의 위치를 바탕으로 캐릭터와 기타 요소들을 캔버스에 그린다.
 
 캐릭터 머리와 클라이밍 홀드, 플래시라이트 등은 이미지를 그리는 방식을 사용하였고, 그 외 몸통 등은 캔버스에서 직접 그렸다.
 
-캐릭터와 클라이밍 홀드를 그리는 내용은 별거 없기 때문에 생략하였고 플래시라이트를 그리는 부분과 더블 버퍼링을 실행하는 부분만 가져와 보았다.
+캐릭터와 클라이밍 홀드를 그리는 내용은 별거 없기 때문에 생략하였고 플래시라이트와 활성화된 손을 그리는 부분과 더블 버퍼링을 실행하는 부분만 가져와 보았다.
 
-### **3-1. 플래시라이트**
+### **4-1. 플래시라이트**
 
 ![](https://velog.velcdn.com/images/drrobot409/post/55a394f4-e811-4767-8758-e4f63df225df/image.png)
 
@@ -805,7 +865,48 @@ drawCommands.push((ctx: CanvasRenderingContext2D) => {
 
 <br />
 
-### **3-2. 더블 버퍼링**
+### **4-2. 마우스를 가리키는 손**
+
+![](https://velog.velcdn.com/images/drrobot409/post/a9cafcba-1115-4971-8918-f0a4cfee75aa/image.png)
+
+마우스를 가리키는 손은 마우스 포인터의 위치를 따라다니지만 손가락 끝으로 마우스 포인터를 가리키는(혹은 클릭하는) 느낌을 주기 위해 의도적으로 거리를 벌려두었다.
+
+여기서 손가락이 포인터의 위치를 자연스럽게 향하기 위해서는 손과 포인터 사이의 각도를 계산하고 손 모양 이미지를 계산한 각도만큼 회전하도록 해야 한다.
+
+```tsx
+const { x, y, trackingMouse } = feet[i];
+const deltaX = x - mouseX;
+const deltaY = y - mouseY;
+const angle = -Math.atan2(deltaX, deltaY);
+
+if (trackingMouse) {
+  const img = new Image();
+  img.src = `/images/huggy_wuggy_finger.svg`;
+
+  drawCommands3.unshift((ctx: CanvasRenderingContext2D) => {
+    // 계산한 각도로 컨텍스트 회전
+    ctx.rotate(angle);
+
+    // 회전된 좌표계 내에서 손 위치 계산
+    const rotatedRHandX = x * Math.cos(angle) + y * Math.sin(angle);
+    const rotatedRHandY = -x * Math.sin(angle) + y * Math.cos(angle);
+
+    ctx.drawImage(
+      img,
+      rotatedRHandX - LIMBS_WIDTH,
+      rotatedRHandY - LIMBS_WIDTH * 1.5,
+      LIMBS_WIDTH * 2,
+      LIMBS_WIDTH * 2
+    );
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  });
+}
+```
+
+<br />
+
+### **4-3. 더블 버퍼링**
 
 ```tsx
 // 모든 그리기 명령 실행
@@ -822,7 +923,8 @@ ctx.drawImage(offscreenCvs!, 0, 0);
 <br />
 
 완성된 모습은 아래와 같고 [여기](https://interactive-one.vercel.app/huggywuggy)에서 직접 확인해 볼 수 있다.
-![](https://velog.velcdn.com/images/drrobot409/post/683e8034-c66a-4079-804a-eac2510c5d0c/image.png)
+
+![](https://velog.velcdn.com/images/drrobot409/post/287886e2-29d5-463c-b796-8f9aa105d662/image.png)
 
 <br />
 

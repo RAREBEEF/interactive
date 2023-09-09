@@ -4,7 +4,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index";
 import HuggyWuggy from "./pages/HuggyWuggy";
 import Dots from "./pages/Dots";
-import { Link } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 
 function App() {
@@ -12,7 +11,6 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <header className="app__header">
-         
           <nav className="app__header__nav">
             <ul>
               <li>

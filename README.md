@@ -1,6 +1,6 @@
 # **JS Canvas API**
 
-![](https://velog.velcdn.com/images/drrobot409/post/683e8034-c66a-4079-804a-eac2510c5d0c/image.png)
+![](https://velog.velcdn.com/images/drrobot409/post/287886e2-29d5-463c-b796-8f9aa105d662/image.png)
 
 지금까지 공부 해오면서 Three나 Matter 등의 라이브러리를 활용한 canvas는 아주 살짝 맛을 본 적이 있지만 JS의 기본 Canvas API는 사용해 본 적이 없다.
 
@@ -797,7 +797,7 @@ feetSetter((prev) => {
 
 <br />
 
-### **3-4. 하나의 함수로 합치기**
+### **3-5. 하나의 함수로 합치기**
 
 위 내용을 하나의 함수로 합친다.  
 내용이 너무 길어지기 때문에 코드 링크로 대체

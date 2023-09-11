@@ -7,13 +7,14 @@ html {
 .App {
   @include var.fullVh;
   @include var.fullVw;
-  color: var.$black;
+  color: var.$darkgray;
 
   * {
     box-sizing: border-box;
   }
 
   .app__header {
+    box-sizing: border-box;
     height: 3rem;
     width: 100vw;
     width: 100dvw;
@@ -21,10 +22,11 @@ html {
     align-items: stretch;
     gap: 2rem;
     background-color: var.$white;
+    border: 1px solid var.$gray;
 
     a {
       text-decoration: none;
-      color: var.$black;
+      color: var.$darkgray;
       font-weight: 700;
     }
 

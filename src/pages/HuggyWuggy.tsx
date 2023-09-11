@@ -1132,11 +1132,6 @@ const HuggyWuggy = () => {
             {lightOn ? "불 끄기" : "불 켜기"}
           </button>
         )}
-        {isDebug && (
-          <p style={{ position: "absolute", left: 0, top: 0 }}>
-            렌더링한 프레임 수 : {ANIMATION_FRAME_ID.current}
-          </p>
-        )}
       </div>
       <canvas
         style={{ background: isDebug ? "white" : "none" }}

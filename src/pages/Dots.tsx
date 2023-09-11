@@ -474,9 +474,6 @@ const Dots = () => {
             <p>사각형 : 영역 구분</p>
             <p>주황 : 복귀 중</p>
             <p>빨강 : 마우스 범위 내</p>
-            <p style={{ position: "absolute", left: 0, top: 0 }}>
-              렌더링한 프레임 수: {ANIMATION_FRAME_ID.current}
-            </p>
           </div>
         )}
       </div>

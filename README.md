@@ -742,9 +742,15 @@ feetSetter((prev) => {
     // 활성화된 손은 마우스 위치를 따라가고 그 외는 인접한 점으로 이동
     const isTrackingMouse =
       (i === 0 && bodyX <= mouseBodyX) || (i === 1 && bodyX > mouseBodyX);
-    // 몸통이 마우스의 정위치로 너무 따라다니지 않고 거리를 유지하며 움직일 수 있도록 계산한다..
+    // 손이 마우스의 정위치로 너무 따라다니지 않고 거리를 유지하며 움직일 수 있도록 계산한다..
     if (isTrackingMouse) {
-      targetX = mouseX + Math.sign(bodyX - mouseX) * LIMBS_WIDTH * 1.5;
+      // 손의 x위치는 몸통에서 멀어질 수록 마우스와 더 멀어지고 가까워질수록 마우스와 더 가까워진다.
+      targetX =
+        mouseX +
+        LIMBS_WIDTH *
+          ((bodyX - mouseX - Math.sign(bodyX - mouseX) * LIMBS_WIDTH * 2) /
+            (LIMBS_WIDTH * 4));
+      // 손의 y위치는 마우스와 항상 일정한 거리를 유지한다.
       targetY = mouseY + Math.sign(bodyY - mouseY) * LIMBS_WIDTH * 1.5;
     } else {
       targetX = dots[nearDot]?.x;

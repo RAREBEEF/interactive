@@ -760,13 +760,18 @@ const HuggyWuggy = () => {
       // 클라이밍 홀드
       for (const [id, { x, y, image }] of Object.entries(dots)) {
         drawCommands1.unshift((ctx: CanvasRenderingContext2D) => {
-          ctx.drawImage(
-            image,
-            x - (BODY_WIDTH * 1.5) / 2,
-            y - BODY_WIDTH,
-            BODY_WIDTH * 1.3,
-            BODY_WIDTH * 1.3
-          );
+          ctx.fillStyle = "gray";
+          ctx.beginPath();
+          ctx.arc(x, y, LIMBS_WIDTH / 4, Math.PI * 2, 0);
+          ctx.closePath();
+          ctx.fill();
+          // ctx.drawImage(
+          //   image,
+          //   x - (BODY_WIDTH * 1.5) / 2,
+          //   y - BODY_WIDTH,
+          //   BODY_WIDTH * 1.3,
+          //   BODY_WIDTH * 1.3
+          // );
         });
       }
 

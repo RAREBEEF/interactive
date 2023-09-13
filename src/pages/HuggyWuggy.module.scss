@@ -4,11 +4,9 @@
   @include var.page-container;
   box-sizing: border-box;
   overflow: hidden;
-  background-color: var.$gray;
-  // background-image: url("../images/tile.png");
-  // background-size: 50vmin;
-  // background-repeat: repeat;
-  background-image: url("../images/dirty.png");
+  background-color: rgb(208, 208, 188);
+  // background-color: var.$gray;
+  // background-image: url("../images/dirty.png");
   background-size: 50vmin;
   background-repeat: no-repeat;
   background-size: cover;

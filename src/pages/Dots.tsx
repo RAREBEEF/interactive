@@ -229,7 +229,7 @@ const Dots = () => {
 
           const deltaX = targetX - dotX; // 현재 x와 타겟 x의 거리
           const deltaY = targetY - dotY; // 현재 y와 타겟 y의 거리
-          // 현재 점과 타겟 점 사이의 거리(유클리드 거리 공식)
+          // 현재 점과 타겟 사이의 거리(유클리드 거리 공식)
           const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
           const dampingFactor = 0.5; // 감쇠 계수
@@ -239,7 +239,7 @@ const Dots = () => {
           // 속도가 0보다 클 경우
           // 속력을 계산해 위치를 업데이트한다.
           if (SPEED > 0) {
-            // 핸재 점(foot[x, y])에서 타겟 점(nearDot[x, y])을 바라보는 라디안 각도
+            // 현재 점에서 타겟을 바라보는 라디안 각도
             const angle = Math.atan2(deltaY, deltaX);
             // 속도와 각도를 통해 각 방향의 속력 구하기
             const velocityX = SPEED * Math.cos(angle);

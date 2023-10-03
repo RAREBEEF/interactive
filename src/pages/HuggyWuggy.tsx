@@ -14,6 +14,7 @@ import _ from "lodash";
 import generateId from "../tools/generateId";
 import dotSort from "../tools/dotSort";
 import classNames from "classnames";
+import { Link } from "react-router-dom";
 
 export interface ENV {
   AREA_DIVIDE: number;
@@ -257,6 +258,8 @@ const HuggyWuggy = () => {
       const { BODY_HEIGHT, LIMBS_WIDTH } = env;
       const [bodyX, bodyY] = bodyPos;
       const [mouseX, mouseY] = mousePos;
+      // 몸통 위치 계산에 사용할 마우스 위치값
+      // 실제 마우스 위치보다 조금 아래로 잡아서 손을 아래보다 위로 더 뻗을 수 있도록 조절하기 위함
       const mouseBodyX = mouseX;
       const mouseBodyY = mouseY + BODY_HEIGHT;
 
@@ -302,7 +305,7 @@ const HuggyWuggy = () => {
         quadrant3: Array<DotDistance> = [],
         quadrant4: Array<DotDistance> = [];
 
-      // 각 점과 마우스 사이 거리 계산 후 사분면으로 나눠서 저장
+      // 각 점과 몸통 사이 거리 계산 후 사분면으로 나눠서 저장
       for (const [id, dot] of Object.entries(dots)) {
         const { x: dotX, y: dotY } = dot;
         const [bodyX, bodyY] = bodyPos;
@@ -327,7 +330,7 @@ const HuggyWuggy = () => {
         }
       }
 
-      // 각 사분면의 점들을 마우스 거리 가까운 순으로 정렬
+      // 각 사분면의 점들을 몸통과 가까운 순으로 정렬
       const sortedQuadrant1 = sortFx(quadrant1),
         sortedQuadrant2 = sortFx(quadrant2),
         sortedQuadrant3 = sortFx(quadrant3),
@@ -386,6 +389,7 @@ const HuggyWuggy = () => {
                   Math.sign(bodyX - mouseX) * LIMBS_WIDTH * 2) /
                   (LIMBS_WIDTH * 4));
             // 손의 y위치는 마우스와 항상 일정한 거리를 유지한다.
+            // 그래야 손가락으로 마우스 위치를 가리키는 것 처럼 보인다.
             targetY = mouseY + Math.sign(bodyY - mouseY) * LIMBS_WIDTH * 1.5;
           } else {
             targetX = dots[nearDot]?.x;
@@ -902,7 +906,7 @@ const HuggyWuggy = () => {
               ctx.closePath();
               ctx.fill();
 
-              ctx.fillStyle = "black";
+              ctx.fillStyle = "orange";
               ctx.font = "bold 16px Arial";
               ctx.fillText(
                 "hand: " + angle.toFixed(5) + " rad ",
@@ -921,10 +925,10 @@ const HuggyWuggy = () => {
         ctx.strokeStyle = LINE_COLOR;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(0, mouseY);
-        ctx.lineTo(cvsWidth, mouseY);
-        ctx.moveTo(mouseX, 0);
-        ctx.lineTo(mouseX, cvsHeight);
+        ctx.moveTo(0, bodyY);
+        ctx.lineTo(cvsWidth, bodyY);
+        ctx.moveTo(bodyX, 0);
+        ctx.lineTo(bodyX, cvsHeight);
         ctx.stroke();
       });
 
@@ -1121,19 +1125,20 @@ const HuggyWuggy = () => {
     <main ref={containerRef} className={styles.container}>
       <div className={styles["console"]}>
         <button
-          className={classNames(
-            styles["toggle-btn"],
-            isDebug && styles["active"]
-          )}
+          className={classNames(styles["btn"], isDebug && styles["active"])}
           onClick={onToggleDebug}
         >
           {isDebug ? "디버그 모드 끄기" : "디버그 모드"}
         </button>
+        <Link
+          className={styles.btn}
+          to="https://www.rarebeef.co.kr/projects/huggywuggy"
+          target="_blank"
+        >
+          포트폴리오 탑재 버전
+        </Link>
         {!isDebug && (
-          <button
-            className={classNames(styles["toggle-btn"])}
-            onClick={onLightToggle}
-          >
+          <button className={classNames(styles["btn"])} onClick={onLightToggle}>
             {lightOn ? "불 끄기" : "불 켜기"}
           </button>
         )}

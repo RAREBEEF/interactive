@@ -37,7 +37,10 @@
       font-weight: 700;
     }
 
-    .toggle-btn {
+    .btn,
+    a {
+      font-size: 14px;
+      text-decoration: none;
       word-break: keep-all;
       color: var.$darkgray;
       font-weight: 700;

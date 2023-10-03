@@ -1,7 +1,6 @@
 # **JS Canvas API**
 
 ![](https://velog.velcdn.com/images/drrobot409/post/287886e2-29d5-463c-b796-8f9aa105d662/image.png)
-
 지금까지 공부 해오면서 Three나 Matter 등의 라이브러리를 활용한 canvas는 아주 살짝 맛을 본 적이 있지만 JS의 기본 Canvas API는 사용해 본 적이 없다.
 
 따라서 간단한 아이디어를 구현하며 Canvas API의 기본 사용법에 대해 익혀보기로 하였다.
@@ -528,7 +527,7 @@ useEffect(() => {
 
 이 차이는 이후 각 점을 사분면으로 구분하고 거리순으로 정렬한 후에도 id를 통해 점의 데이터를 빠르게 불러오기 위함이다.
 
-또한 이 점들이 캐릭터가 손발로 붙잡을 위치란 것을 나타내기 위해 각 점의 위치에 [클라이밍 홀드](https://www.google.com/search?sca_esv=562665302&sxsrf=AB5stBiYgMvV3hy7o4h0mf6slKvXQlmIRg:1693893774673&q=%ED%81%B4%EB%9D%BC%EC%9D%B4%EB%B0%8D+%ED%99%80%EB%93%9C&tbm=isch&source=lnms&sa=X&ved=2ahUKEwjMweaF5pKBAxVPMN4KHWLoAQgQ0pQJegQIDRAB&biw=1130&bih=1115&dpr=2) 이미지를 그릴 예정이다.
+~~또한 이 점들이 캐릭터가 손발로 붙잡을 위치란 것을 나타내기 위해 각 점의 위치에 [클라이밍 홀드](https://www.google.com/search?sca_esv=562665302&sxsrf=AB5stBiYgMvV3hy7o4h0mf6slKvXQlmIRg:1693893774673&q=%ED%81%B4%EB%9D%BC%EC%9D%B4%EB%B0%8D+%ED%99%80%EB%93%9C&tbm=isch&source=lnms&sa=X&ved=2ahUKEwjMweaF5pKBAxVPMN4KHWLoAQgQ0pQJegQIDRAB&biw=1130&bih=1115&dpr=2) 이미지를 그릴 예정이다.~~ 디자인이 구려서 완성본에서는 점으로 대체하였다.
 
 ```ts
 const dots: Dots = {};
@@ -540,6 +539,7 @@ for (const area of areas) {
   const y = Math.floor(Math.random() * (endY - startY) + startY);
 
   // 클라이밍 홀드 이미지(4개 이미지 중 랜덤) 부여
+  // 완성본에서는 점으로 대체하였다.
   const image = new Image();
   const holdNum = Math.floor(Math.random() * 4) + 1;
   image.src = `/images/hold${holdNum}.png`;
@@ -562,7 +562,7 @@ setDots(dots);
 
 이번 아이디어에서는 모든 점이 움직이는 것이 아닌 몸통과 4개의 점(손발)만 움직인다.
 
-몸통과 활성화된 손은 마우스의 위치를 따라다니고(일정 거리 유지하며) 활성화되지 않은 손과 발은 자신이 해당하는 사분면에서 가장 마우스와 가까운 고정점의 위치로 이동하게 된다.
+몸통과 활성화된 손은 마우스의 위치를 따라다니고(일정 거리 유지하며) 활성화되지 않은 손과 발은 자신이 해당하는 사분면에서 가장 몸통과 가까운 고정점의 위치로 이동하게 된다.
 
 따라서 각 고정점의 거리와 사분면을 계산하고 그 이후에 손발의 위치를 계산해야 한다. 이런 계산을 통해 움직임을 구현하면 캐릭터가 벽면을 타고 다니며 마우스 포인터를 손으로 가리키는 모습을 만들 수 있다.
 
@@ -571,6 +571,11 @@ setDots(dots);
 몸통은 기본적으로 마우스를 따라다니지만 마우스와의 거리가 기준보다 가까울 때는 움직이지 않으며 거리가 기준보다 멀어질 경우 다시 마우스에게 다가간다.
 
 ```tsx
+// 몸통 위치 계산에 사용할 마우스 위치값
+// 실제 마우스 위치보다 조금 아래로 잡아서 손을 아래보다 위로 더 뻗을 수 있도록 조절하기 위함
+const mouseBodyX = mouseX;
+const mouseBodyY = mouseY + BODY_HEIGHT;
+
 bodySetter((prev) => {
   const [bodyX, bodyY] = prev;
   let newX = bodyX;
@@ -614,7 +619,7 @@ bodySetter((prev) => {
 
 ![](https://velog.velcdn.com/images/drrobot409/post/f5a6e44d-11c0-426f-aac0-89ea7308943d/image.png)
 
-마우스의 위치를 기준으로 사분면을 나누고 각 점과 마우스 사이의 거리를 계산한다.
+몸통 위치를 기준으로 사분면을 나누고 각 점과 몸통 사이의 거리를 계산한다.
 
 점의 위치를 사분면으로 나누는 이유는 각 손발의 이동 영역을 각 사분면으로 제한하여 팔다리가 꼬여있지 않은 자연스러운 자세를 유지하기 위함이다.
 
@@ -630,23 +635,23 @@ const quadrant1: Array<DotDistance> = [],
   quadrant3: Array<DotDistance> = [],
   quadrant4: Array<DotDistance> = [];
 
-// 각 점과 마우스 사이 거리 계산 후 사분면으로 나눠서 저장
+// 각 점과 몸통 사이 거리 계산 후 사분면으로 나눠서 저장
 for (const [id, dot] of Object.entries(dots)) {
   const { x: dotX, y: dotY } = dot;
 
-  const deltaX = mouseX - dotX;
-  const deltaY = mouseY - dotY;
+  const deltaX = bodyX - dotX;
+  const deltaY = bodyY - dotY;
   const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
   const dotDistance = { id, distance };
 
-  if (dotX <= mouseX) {
-    if (dotY <= mouseY) {
+  if (dotX <= bodyX) {
+    if (dotY <= bodyY) {
       quadrant2.push(dotDistance);
     } else {
       quadrant3.push(dotDistance);
     }
   } else {
-    if (dotY <= mouseY) {
+    if (dotY <= bodyY) {
       quadrant1.push(dotDistance);
     } else {
       quadrant4.push(dotDistance);
@@ -661,7 +666,7 @@ for (const [id, dot] of Object.entries(dots)) {
 
 ![](https://velog.velcdn.com/images/drrobot409/post/be0c141d-4cd0-42a6-b4d6-a8ae27670bae/image.png)
 
-이제 각 사분면의 점들을 마우스와 거리가 가까운 순으로 정렬하고, 사분면별로 가장 가까운 점을 구한다.
+이제 각 사분면의 점들을 몸통과 거리가 가까운 순으로 정렬하고, 사분면별로 가장 가까운 점을 구한다.
 
 ```ts
 // 점들을 distance 오름차순으로 병합 정렬하는 함수
@@ -694,7 +699,7 @@ const dotSort = (
   return merged.concat(left.slice(indexL), right.slice(indexR));
 };
 
-// 각 사분면의 점들을 마우스 거리 가까운 순으로 정렬
+// 각 사분면의 점들을 몸통과 가까운 순으로 정렬
 const sortedQuadrant1 = dotSort(quadrant1),
   sortedQuadrant2 = dotSort(quadrant2),
   sortedQuadrant3 = dotSort(quadrant3),
@@ -751,6 +756,7 @@ feetSetter((prev) => {
           ((bodyX - mouseX - Math.sign(bodyX - mouseX) * LIMBS_WIDTH * 2) /
             (LIMBS_WIDTH * 4));
       // 손의 y위치는 마우스와 항상 일정한 거리를 유지한다.
+      // 그래야 손가락으로 마우스 위치를 가리키는 것 처럼 보인다.
       targetY = mouseY + Math.sign(bodyY - mouseY) * LIMBS_WIDTH * 1.5;
     } else {
       targetX = dots[nearDot]?.x;
@@ -928,9 +934,11 @@ ctx.drawImage(offscreenCvs!, 0, 0);
 
 <br />
 
-완성된 모습은 아래와 같고 [여기](https://interactive-one.vercel.app/huggywuggy)에서 직접 확인해 볼 수 있다.
-
 ![](https://velog.velcdn.com/images/drrobot409/post/287886e2-29d5-463c-b796-8f9aa105d662/image.png)
+
+앞서 설명한 코드대로 구현한 원래 모습은 위 이미지와 같지만 디자인이 너무 구려서 클라이밍 홀드와 배경 이미지를 단순화하였다. 좋은 디자인 아이디어가 떠오르면 적용해 볼 예정이다.
+
+[여기](https://interactive-one.vercel.app/huggywuggy)에서 직접 확인해 볼 수 있으며 [포트폴리오](https://www.rarebeef.co.kr/projects/huggywuggy)에는 플래시라이트를 없애고 허기워기의 그림자를 추가하는 등 몇가지 변경 사항이 업데이트된 버전을 추가하였다.
 
 <br />
 
